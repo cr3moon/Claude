@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OpenCStore Back Office – Sample PLU Export File
+
+  This is a SAMPLE/MOCK file for demonstration purposes only.
+  It approximates the structure of PLU export files used by
+  various c-store POS back-office utilities.
+
+  It is NOT an official Verifone or Gilbarco file format.
+  Field names and structure may differ from your actual POS export.
+-->
+<PLUFile exported="2024-01-15T08:00:00" version="1.0" store="SAMPLE STORE">
+
+  <Departments>
+    <Department id="1"  Name="TOBACCO"       Taxable="true"  AgeRestricted="true"  IsFuel="false" />
+    <Department id="2"  Name="BEER/WINE"      Taxable="true"  AgeRestricted="true"  IsFuel="false" />
+    <Department id="3"  Name="PACKAGED BEV"   Taxable="false" AgeRestricted="false" IsFuel="false" />
+    <Department id="4"  Name="SNACKS"         Taxable="false" AgeRestricted="false" IsFuel="false" />
+    <Department id="5"  Name="CANDY"          Taxable="false" AgeRestricted="false" IsFuel="false" />
+    <Department id="6"  Name="GROCERY"        Taxable="false" AgeRestricted="false" IsFuel="false" />
+    <Department id="7"  Name="DAIRY"          Taxable="false" AgeRestricted="false" IsFuel="false" />
+    <Department id="8"  Name="HOT FOOD"       Taxable="true"  AgeRestricted="false" IsFuel="false" />
+    <Department id="9"  Name="FUEL"           Taxable="true"  AgeRestricted="false" IsFuel="true"  />
+    <Department id="10" Name="LOTTERY"        Taxable="false" AgeRestricted="false" IsFuel="false" />
+    <Department id="11" Name="CAR CARE"       Taxable="true"  AgeRestricted="false" IsFuel="false" />
+    <Department id="12" Name="HEALTH/BEAUTY"  Taxable="true"  AgeRestricted="false" IsFuel="false" />
+  </Departments>
+
+  <Categories>
+    <Category id="101" deptId="1"  Name="CIGARETTES"           />
+    <Category id="102" deptId="1"  Name="CIGARS"               />
+    <Category id="103" deptId="1"  Name="SMOKELESS"            />
+    <Category id="201" deptId="2"  Name="BEER 6PK"             />
+    <Category id="202" deptId="2"  Name="BEER 12PK"            />
+    <Category id="203" deptId="2"  Name="BEER SINGLE"          />
+    <Category id="204" deptId="2"  Name="WINE"                 />
+    <Category id="301" deptId="3"  Name="CARBONATED SOFT DRINKS"/>
+    <Category id="302" deptId="3"  Name="ENERGY DRINKS"        />
+    <Category id="303" deptId="3"  Name="SPORTS DRINKS"        />
+    <Category id="304" deptId="3"  Name="WATER"                />
+    <Category id="305" deptId="3"  Name="JUICE"                />
+    <Category id="401" deptId="4"  Name="CHIPS/CRISPS"         />
+    <Category id="402" deptId="4"  Name="JERKY/MEAT SNACKS"    />
+    <Category id="403" deptId="4"  Name="NUTS/SEEDS"           />
+    <Category id="501" deptId="5"  Name="CHOCOLATE"            />
+    <Category id="502" deptId="5"  Name="NON-CHOCOLATE"        />
+    <Category id="601" deptId="6"  Name="CONDIMENTS"           />
+    <Category id="701" deptId="7"  Name="MILK"                 />
+    <Category id="702" deptId="7"  Name="EGGS"                 />
+  </Categories>
+
+  <Items>
+
+    <!-- ── Tobacco ─────────────────────────────────────────────────────── -->
+    <Item id="1001" deptId="1" catId="101" Taxable="true" AgeRestricted="true">
+      <Description>MARLBORO REDS KS 20CT</Description>
+      <ShortDesc>MARL RD KS</ShortDesc>
+      <UnitDesc>PK</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>6.80</Cost>
+      <Retail>9.49</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">012345678901</ScanCode>
+      </ScanCodes>
+      <VendorCode>PM</VendorCode>
+      <ProductCode>MRL-RD-KS</ProductCode>
+    </Item>
+
+    <Item id="1002" deptId="1" catId="101" Taxable="true" AgeRestricted="true">
+      <Description>MARLBORO LIGHTS KS 20CT</Description>
+      <ShortDesc>MARL LT KS</ShortDesc>
+      <UnitDesc>PK</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>6.80</Cost>
+      <Retail>9.49</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">012345678902</ScanCode>
+      </ScanCodes>
+      <VendorCode>PM</VendorCode>
+    </Item>
+
+    <Item id="1003" deptId="1" catId="101" Taxable="true" AgeRestricted="true">
+      <Description>NEWPORT MENTHOL KS BOX 20CT</Description>
+      <ShortDesc>NWPT MNT KS</ShortDesc>
+      <UnitDesc>PK</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>6.95</Cost>
+      <Retail>9.79</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">012800000108</ScanCode>
+      </ScanCodes>
+      <VendorCode>RJ</VendorCode>
+    </Item>
+
+    <!-- ── Beverages ───────────────────────────────────────────────────── -->
+    <Item id="2001" deptId="3" catId="301" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>COCA COLA 20OZ PET</Description>
+      <ShortDesc>COKE 20Z</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>0.99</Cost>
+      <Retail>2.19</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">049000006344</ScanCode>
+      </ScanCodes>
+      <VendorCode>COC</VendorCode>
+    </Item>
+
+    <Item id="2002" deptId="3" catId="301" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>PEPSI 20OZ PET</Description>
+      <ShortDesc>PEPSI 20Z</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>0.95</Cost>
+      <Retail>2.19</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">012000001048</ScanCode>
+      </ScanCodes>
+      <VendorCode>PEP</VendorCode>
+    </Item>
+
+    <Item id="2003" deptId="3" catId="302" Taxable="false" AgeRestricted="false">
+      <Description>RED BULL ENERGY 8.4OZ CAN</Description>
+      <ShortDesc>RED BULL 8Z</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>1.85</Cost>
+      <Retail>3.49</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">611269991000</ScanCode>
+      </ScanCodes>
+      <VendorCode>RBL</VendorCode>
+    </Item>
+
+    <Item id="2004" deptId="3" catId="302" Taxable="false" AgeRestricted="false">
+      <Description>MONSTER ENERGY ORIGINAL 16OZ CAN</Description>
+      <ShortDesc>MONSTER 16Z</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>1.60</Cost>
+      <Retail>3.29</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">070847811169</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <Item id="2005" deptId="3" catId="303" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>GATORADE LEMON LIME 32OZ BTL</Description>
+      <ShortDesc>GATOR 32Z</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>1.10</Cost>
+      <Retail>2.49</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">052000329841</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <Item id="2006" deptId="3" catId="304" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>DASANI WATER 20OZ PET</Description>
+      <ShortDesc>DASANI 20Z</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>0.45</Cost>
+      <Retail>1.79</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">049000042566</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <!-- ── Snacks ──────────────────────────────────────────────────────── -->
+    <Item id="3001" deptId="4" catId="401" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>LAYS CLASSIC 2.625OZ BAG</Description>
+      <ShortDesc>LAYS CLS</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>0.99</Cost>
+      <Retail>1.99</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">028400090131</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <Item id="3002" deptId="4" catId="402" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>JACK LINKS BEEF JERKY ORIGINAL 3.25OZ</Description>
+      <ShortDesc>JKLINK 3.25</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>3.45</Cost>
+      <Retail>5.99</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">017082875571</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <Item id="3003" deptId="5" catId="501" Taxable="false" AgeRestricted="false" Foodstamp="true">
+      <Description>SNICKERS BAR 1.86OZ</Description>
+      <ShortDesc>SNICKERS</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>0.60</Cost>
+      <Retail>1.49</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">040000507925</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <!-- ── Beer ────────────────────────────────────────────────────────── -->
+    <Item id="4001" deptId="2" catId="201" Taxable="true" AgeRestricted="true">
+      <Description>BUD LIGHT 6PK 12OZ CANS</Description>
+      <ShortDesc>BUD LT 6PK</ShortDesc>
+      <UnitDesc>PK</UnitDesc>
+      <PackSize>6</PackSize>
+      <Cost>5.20</Cost>
+      <Retail>8.99</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">018200000018</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <!-- ── Items with DATA QUALITY ISSUES for demo/testing ────────────── -->
+
+    <!-- Issue: Blank description -->
+    <Item id="9001" deptId="4" catId="401" Taxable="false" AgeRestricted="false">
+      <Description></Description>
+      <ShortDesc></ShortDesc>
+      <UnitDesc></UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>1.20</Cost>
+      <Retail>1.99</Retail>
+      <ScanCodes/>
+    </Item>
+
+    <!-- Issue: Duplicate UPC with item 1001, wrong tax flag, missing age flag -->
+    <Item id="9002" deptId="1" catId="101" Taxable="false" AgeRestricted="false">
+      <Description>MARLBORO REDS KS 20CT</Description>
+      <ShortDesc>MARL RD DUP</ShortDesc>
+      <UnitDesc>PK</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>6.80</Cost>
+      <Retail>9.49</Retail>
+      <ScanCodes>
+        <!-- This UPC is a duplicate of item 1001 - will trigger DUPLICATE_UPC audit rule -->
+        <ScanCode type="UPC_A" primary="true">012345678901</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <!-- Issue: Energy drink in wrong department (GROCERY instead of PACKAGED BEV) -->
+    <Item id="9003" deptId="6" catId="601" Taxable="false" AgeRestricted="false">
+      <Description>GENERIC ENERGY DRINK 16OZ CAN</Description>
+      <ShortDesc>GEN ENRGY</ShortDesc>
+      <UnitDesc>ea</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>1.50</Cost>
+      <!-- Margin only 25% - below target of 40% for beverages -->
+      <Retail>2.00</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">099999999991</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <!-- Issue: Price below cost -->
+    <Item id="9004" deptId="3" catId="301" Taxable="false" AgeRestricted="false">
+      <Description>STORE BRAND WATER 16OZ</Description>
+      <ShortDesc>STORE WTR</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>0.75</Cost>
+      <!-- Price is BELOW cost - will trigger PRICE_BELOW_COST rules -->
+      <Retail>0.59</Retail>
+      <ScanCodes>
+        <ScanCode type="UPC_A" primary="true">099999999992</ScanCode>
+      </ScanCodes>
+    </Item>
+
+    <!-- Issue: Missing UPC, short desc too long -->
+    <Item id="9005" deptId="4" catId="403" Taxable="false" AgeRestricted="false">
+      <Description>PLANTERS MIXED NUTS 1.75OZ POUCH</Description>
+      <ShortDesc>PLNTRS MX NTS SM</ShortDesc>
+      <UnitDesc>EA</UnitDesc>
+      <PackSize>1</PackSize>
+      <Cost>1.10</Cost>
+      <Retail>2.29</Retail>
+      <ScanCodes/>
+    </Item>
+
+  </Items>
+</PLUFile>
