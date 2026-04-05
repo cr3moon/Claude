@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens ──────────────────────────────────────────── */
+:root {
+  --color-primary: #2563eb;   /* blue-600 */
+  --color-danger:  #dc2626;   /* red-600  */
+  --radius-card:   0.75rem;
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+@layer base {
+  body {
+    @apply text-gray-800 antialiased text-sm;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb  { @apply bg-gray-300 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400; }
+}
+
+/* ─── Component classes ──────────────────────────────────────── */
+@layer components {
+  /* Card */
+  .card {
+    @apply bg-white border border-gray-200 rounded-xl p-4 shadow-sm;
+  }
+
+  /* Inputs */
+  .input {
+    @apply h-9 px-3 py-1.5 rounded-lg border border-gray-300 text-sm
+           bg-white text-gray-900 placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+           transition;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5
+           h-9 px-4 rounded-lg text-sm font-medium
+           bg-blue-600 text-white hover:bg-blue-700
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+           transition;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5
+           h-9 px-4 rounded-lg text-sm font-medium
+           bg-white text-gray-700 border border-gray-300 hover:bg-gray-50
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+           transition;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5
+           h-9 px-4 rounded-lg text-sm font-medium
+           bg-red-600 text-white hover:bg-red-700
+           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1
+           transition;
+  }
+
+  /* Table */
+  .table-base {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .table-base thead tr {
+    @apply bg-gray-50 border-b border-gray-200;
+  }
+
+  .table-base th {
+    @apply px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide;
+  }
+
+  .table-base td {
+    @apply px-3 py-2.5 border-b border-gray-100 text-gray-700;
+  }
+
+  .table-base tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .table-base tbody tr:hover td {
+    @apply bg-blue-50/40;
+  }
+}

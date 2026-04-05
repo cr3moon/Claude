@@ -4,14 +4,19 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  root: 'app/renderer',
+  // Renderer root is now /src — index.html lives at project root
+  root: resolve(__dirname, 'src'),
+  publicDir: resolve(__dirname, 'public'),
   build: {
-    outDir: '../../dist',
+    outDir: resolve(__dirname, 'dist/renderer'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: resolve(__dirname, 'src/index.html'),
+    },
   },
   resolve: {
     alias: {
-      '@renderer': resolve(__dirname, 'app/renderer'),
+      '@': resolve(__dirname, 'src'),
     },
   },
   server: {

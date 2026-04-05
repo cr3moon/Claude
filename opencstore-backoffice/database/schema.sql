@@ -533,3 +533,211 @@ CREATE INDEX IF NOT EXISTS idx_pricing_rec_store_job   ON pricing_recommendation
 CREATE INDEX IF NOT EXISTS idx_audit_log_store         ON audit_log(store_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_event         ON audit_log(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created       ON audit_log(created_at);
+
+-- ============================================================
+-- SUPPLEMENTAL TABLES (v1.1)
+-- ============================================================
+
+-- Raw source files tracked per import job
+CREATE TABLE IF NOT EXISTS source_files (
+  id              TEXT PRIMARY KEY,
+  import_job_id   TEXT NOT NULL REFERENCES import_jobs(id),
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  original_name   TEXT NOT NULL,
+  stored_path     TEXT NOT NULL,
+  file_size_bytes INTEGER,
+  format          TEXT NOT NULL,           -- 'xml_plu' | 'csv_pricebook' | 'csv_transactions'
+  checksum        TEXT,
+  row_count       INTEGER,
+  status          TEXT NOT NULL DEFAULT 'pending',
+  created_at      TEXT NOT NULL
+);
+
+-- Extended product code registry (UPC-A, UPC-E, EAN-13, ITF-14, etc.)
+CREATE TABLE IF NOT EXISTS product_codes (
+  id              TEXT PRIMARY KEY,
+  plu_item_id     TEXT NOT NULL REFERENCES plu_items(id) ON DELETE CASCADE,
+  code_type       TEXT NOT NULL,           -- 'upc_a' | 'upc_e' | 'ean13' | 'itf14' | 'internal'
+  code_value      TEXT NOT NULL,
+  is_primary      INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_codes_unique
+  ON product_codes(plu_item_id, code_type, code_value);
+
+-- Cost history per PLU item
+CREATE TABLE IF NOT EXISTS costs (
+  id              TEXT PRIMARY KEY,
+  plu_item_id     TEXT NOT NULL REFERENCES plu_items(id) ON DELETE CASCADE,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  unit_cost       REAL NOT NULL,
+  vendor_name     TEXT,
+  vendor_sku      TEXT,
+  pack_size       INTEGER NOT NULL DEFAULT 1,
+  case_cost       REAL,
+  effective_date  TEXT NOT NULL,
+  source          TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'import' | 'invoice'
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_costs_plu_date ON costs(plu_item_id, effective_date DESC);
+
+-- Daily sales aggregations (summarised from transaction_items)
+CREATE TABLE IF NOT EXISTS sales_daily (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  sale_date       TEXT NOT NULL,           -- YYYY-MM-DD
+  plu_item_id     TEXT NOT NULL REFERENCES plu_items(id),
+  dept_id         TEXT REFERENCES departments(id),
+  qty_sold        INTEGER NOT NULL DEFAULT 0,
+  total_revenue   REAL NOT NULL DEFAULT 0.0,
+  total_cost      REAL NOT NULL DEFAULT 0.0,
+  gross_margin    REAL NOT NULL DEFAULT 0.0,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_daily_unique
+  ON sales_daily(store_id, sale_date, plu_item_id);
+
+-- Shift-level sales aggregations
+CREATE TABLE IF NOT EXISTS sales_shift (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  shift_id        TEXT NOT NULL REFERENCES shifts(id),
+  plu_item_id     TEXT NOT NULL REFERENCES plu_items(id),
+  qty_sold        INTEGER NOT NULL DEFAULT 0,
+  total_revenue   REAL NOT NULL DEFAULT 0.0,
+  total_cost      REAL NOT NULL DEFAULT 0.0,
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sales_shift_shift ON sales_shift(shift_id);
+
+-- Tax rate configuration
+CREATE TABLE IF NOT EXISTS taxes (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  tax_name        TEXT NOT NULL,
+  rate            REAL NOT NULL,           -- e.g. 0.0825 for 8.25%
+  applies_to      TEXT NOT NULL DEFAULT 'all', -- 'all' | 'food' | 'non_food' | 'alcohol' | 'fuel'
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+-- Configured normalization rule overrides (enable/disable per store)
+CREATE TABLE IF NOT EXISTS item_audit_rules (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  rule_code       TEXT NOT NULL,
+  is_enabled      INTEGER NOT NULL DEFAULT 1,
+  severity_override TEXT,                  -- NULL means use default
+  notes           TEXT,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_item_audit_rules_unique
+  ON item_audit_rules(store_id, rule_code);
+
+-- Configured pricing rule overrides per department pattern
+CREATE TABLE IF NOT EXISTS pricing_rules (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  dept_pattern    TEXT NOT NULL,           -- regex or wildcard matched against dept_name
+  target_margin   REAL NOT NULL,
+  min_margin      REAL,
+  max_margin      REAL,
+  price_ending    TEXT,                    -- e.g. '.99' | '.49' | null (use default)
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  priority        INTEGER NOT NULL DEFAULT 0,
+  notes           TEXT,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+-- Recommendation approval workflow tracking
+CREATE TABLE IF NOT EXISTS recommendation_approvals (
+  id                   TEXT PRIMARY KEY,
+  recommendation_id    TEXT NOT NULL,      -- FK to item_recommendations or pricing_recommendations
+  recommendation_type  TEXT NOT NULL,      -- 'item' | 'pricing'
+  store_id             TEXT NOT NULL REFERENCES stores(id),
+  action               TEXT NOT NULL,      -- 'approved' | 'rejected' | 'deferred'
+  actioned_by          TEXT NOT NULL REFERENCES users(id),
+  notes                TEXT,
+  created_at           TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rec_approvals_rec ON recommendation_approvals(recommendation_id);
+
+-- Report run history (extends reports_archive with execution metadata)
+CREATE TABLE IF NOT EXISTS report_runs (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  report_id       TEXT NOT NULL,           -- matches ReportDefinition.id
+  report_name     TEXT NOT NULL,
+  params          TEXT,                    -- JSON: { date_from, date_to, ... }
+  row_count       INTEGER,
+  duration_ms     INTEGER,
+  exported_format TEXT,                    -- 'csv' | 'pdf' | 'print' | null
+  run_by          TEXT REFERENCES users(id),
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_runs_store ON report_runs(store_id, created_at DESC);
+
+-- Checklist run instances (one row per started checklist)
+CREATE TABLE IF NOT EXISTS checklist_runs (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  shift_id        TEXT REFERENCES shifts(id),
+  template_id     TEXT NOT NULL,           -- 'shift_open' | 'shift_close' | 'day_close' | 'shift_handoff'
+  started_by      TEXT NOT NULL REFERENCES users(id),
+  status          TEXT NOT NULL DEFAULT 'in_progress', -- 'in_progress' | 'complete' | 'abandoned'
+  steps_total     INTEGER NOT NULL DEFAULT 0,
+  steps_done      INTEGER NOT NULL DEFAULT 0,
+  started_at      TEXT NOT NULL,
+  completed_at    TEXT
+);
+
+-- Individual step completions for a checklist run
+CREATE TABLE IF NOT EXISTS checklist_run_steps (
+  id              TEXT PRIMARY KEY,
+  run_id          TEXT NOT NULL REFERENCES checklist_runs(id) ON DELETE CASCADE,
+  step_key        TEXT NOT NULL,
+  label           TEXT NOT NULL,
+  completed       INTEGER NOT NULL DEFAULT 0,
+  completed_by    TEXT REFERENCES users(id),
+  completed_at    TEXT,
+  notes           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_checklist_run_steps_run ON checklist_run_steps(run_id);
+
+-- Rollback records for applied price changes
+CREATE TABLE IF NOT EXISTS rollback_records (
+  id                   TEXT PRIMARY KEY,
+  store_id             TEXT NOT NULL REFERENCES stores(id),
+  rollback_type        TEXT NOT NULL,      -- 'price_change' | 'import'
+  source_backup_id     TEXT REFERENCES backup_manifest(id),
+  target_entity_type   TEXT NOT NULL,
+  target_entity_ids    TEXT NOT NULL,      -- JSON array of affected IDs
+  snapshot_before      TEXT NOT NULL,      -- JSON snapshot of pre-change state
+  status               TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'applied' | 'failed'
+  initiated_by         TEXT NOT NULL REFERENCES users(id),
+  applied_at           TEXT,
+  notes                TEXT,
+  created_at           TEXT NOT NULL
+);
+
+-- ============================================================
+-- SUPPLEMENTAL INDEXES
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_source_files_job     ON source_files(import_job_id);
+CREATE INDEX IF NOT EXISTS idx_costs_store          ON costs(store_id);
+CREATE INDEX IF NOT EXISTS idx_sales_daily_date     ON sales_daily(store_id, sale_date);
+CREATE INDEX IF NOT EXISTS idx_sales_shift_store    ON sales_shift(store_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_runs_store ON checklist_runs(store_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rollback_store       ON rollback_records(store_id, created_at DESC);
