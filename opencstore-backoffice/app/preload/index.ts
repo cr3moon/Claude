@@ -1,6 +1,9 @@
 /**
  * Preload script – exposes safe IPC bridge to renderer.
  * Context isolation is ON; renderer never touches Node.js directly.
+ *
+ * Every method here has a matching ipcMain.handle(channel, ...)
+ * in app/main/index.ts.
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
@@ -11,67 +14,131 @@ const invoke = (channel: IpcChannel, ...args: unknown[]) =>
   ipcRenderer.invoke(channel, ...args);
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // App
-  getState:          ()           => invoke('app:getState'),
+  // ── App state ─────────────────────────────────────────────────────────────
+  getState:              ()                              => invoke('app:getState'),
+  getCurrentUser:        ()                              => invoke('app:getCurrentUser'),
+  getOnboardingState:    ()                              => invoke('app:getOnboardingState'),
 
-  // Auth
-  login:             (u: string, p: string) => invoke('auth:login', { username: u, password: p }),
-  logout:            ()           => invoke('auth:logout'),
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  login:                 (u: string, p: string)          => invoke('auth:login', { username: u, password: p }),
+  logout:                ()                              => invoke('auth:logout'),
 
-  // Onboarding
-  completeOnboarding: (payload: unknown) => invoke('onboarding:complete', payload),
+  // ── Onboarding ────────────────────────────────────────────────────────────
+  completeOnboarding:    (payload: unknown)              => invoke('onboarding:complete', payload),
 
-  // Dashboard
-  getDashboardSummary: ()         => invoke('dashboard:getSummary'),
+  // ── Dashboard ─────────────────────────────────────────────────────────────
+  getDashboardMetrics:   ()                              => invoke('dashboard:getMetrics'),
+  getDashboardSummary:   ()                              => invoke('dashboard:getMetrics'),  // alias
+  getRecentAuditItems:   ()                              => invoke('dashboard:getRecentAuditItems'),
 
-  // Store
-  getStore:          ()           => invoke('store:get'),
+  // ── Store ─────────────────────────────────────────────────────────────────
+  getStore:              ()                              => invoke('store:get'),
 
-  // Import
-  runMockImport:     ()           => invoke('import:runMockImport'),
-  importFromFile:    (filePath: string, format: string) => invoke('import:fromFile', { filePath, format }),
-  getImportHistory:  ()           => invoke('import:getHistory'),
-  openFileDialog:    ()           => invoke('import:openFileDialog'),
+  // ── Settings ──────────────────────────────────────────────────────────────
+  getSettings:           ()                              => invoke('settings:get'),
+  saveSettings:          (data: unknown)                 => invoke('settings:save', data),
 
-  // Items
-  getItems:          (opts: unknown) => invoke('items:getAll', opts),
+  // ── Import ────────────────────────────────────────────────────────────────
+  runMockImport:         ()                              => invoke('import:runMockImport'),
+  importFromFile:        (filePath: string, format: string) => invoke('import:fromFile', { filePath, format }),
+  getImportHistory:      ()                              => invoke('import:getHistory'),
+  openFileDialog:        ()                              => invoke('import:openFileDialog'),
 
-  // Departments / Categories
-  getDepartments:    ()           => invoke('departments:getAll'),
-  getCategories:     ()           => invoke('categories:getAll'),
+  // ── Items ─────────────────────────────────────────────────────────────────
+  getItems:              (opts: unknown)                 => invoke('items:getAll', opts),
+  getDepartments:        ()                              => invoke('departments:getAll'),
+  getCategories:         ()                              => invoke('categories:getAll'),
 
-  // Item Audit
-  runItemAudit:      ()           => invoke('itemAudit:run'),
-  getPendingItemRecs: (jobRunId?: string) => invoke('itemAudit:getPending', jobRunId),
-  approveItemRec:    (recId: string, notes?: string) => invoke('itemAudit:approve', { recId, notes }),
-  rejectItemRec:     (recId: string, notes?: string) => invoke('itemAudit:reject', { recId, notes }),
+  // ── Item Audit ────────────────────────────────────────────────────────────
+  runItemAudit:          ()                              => invoke('itemAudit:run'),
+  getPendingItemRecs:    (jobRunId?: string)             => invoke('itemAudit:getPending', jobRunId),
+  approveItemRec:        (recId: string, notes?: string) => invoke('itemAudit:approve', { recId, notes }),
+  rejectItemRec:         (recId: string, notes?: string) => invoke('itemAudit:reject', { recId, notes }),
 
-  // Pricing
-  runPricingAnalysis: ()          => invoke('pricing:runAnalysis'),
-  getPendingPriceRecs: (jobRunId?: string) => invoke('pricing:getPending', jobRunId),
-  approvePriceRec:   (recId: string, notes?: string) => invoke('pricing:approve', { recId, notes }),
-  rejectPriceRec:    (recId: string, notes?: string) => invoke('pricing:reject', { recId, notes }),
-  exportApprovedPrices: ()        => invoke('pricing:exportApproved'),
+  // ── Pricing ───────────────────────────────────────────────────────────────
+  runPricingAnalysis:    ()                              => invoke('pricing:runAnalysis'),
+  getPendingPriceRecs:   (jobRunId?: string)             => invoke('pricing:getPending', jobRunId),
+  approvePriceRec:       (recId: string, notes?: string) => invoke('pricing:approve', { recId, notes }),
+  rejectPriceRec:        (recId: string, notes?: string) => invoke('pricing:reject', { recId, notes }),
+  exportApprovedPrices:  ()                              => invoke('pricing:exportApproved'),
 
-  // Reports
-  generateReport:    (params: unknown) => invoke('reports:generate', params),
-  getReportArchive:  ()           => invoke('reports:getArchive'),
-  getReportById:     (id: string) => invoke('reports:getById', id),
+  // ── Reports ───────────────────────────────────────────────────────────────
+  generateReport:        (params: unknown)               => invoke('reports:generate', params),
+  getReportArchive:      ()                              => invoke('reports:getArchive'),
+  getReportById:         (id: string)                    => invoke('reports:getById', id),
 
-  // Checklists
-  createChecklist:   (payload: unknown) => invoke('checklist:create', payload),
-  getChecklist:      (id: string)       => invoke('checklist:getWithSteps', id),
-  completeStep:      (payload: unknown) => invoke('checklist:completeStep', payload),
-  finalizeChecklist: (payload: unknown) => invoke('checklist:finalize', payload),
-  getChecklistHistory: ()               => invoke('checklist:getHistory'),
+  // ── Shifts ────────────────────────────────────────────────────────────────
+  getShifts:             ()                              => invoke('shifts:getAll'),
+  openShift:             ()                              => invoke('shifts:open'),
+  closeShift:            (shiftId: string)               => invoke('shifts:close', { shiftId }),
 
-  // Audit Log
-  getAuditLog:       (opts?: unknown)   => invoke('auditLog:getRecent', opts),
+  // ── Checklists ────────────────────────────────────────────────────────────
+  startChecklist:        (templateId: string)            => invoke('checklist:start', { templateId }),
+  getChecklists:         ()                              => invoke('checklist:getHistory'),
+  createChecklist:       (payload: unknown)              => invoke('checklist:create', payload),
+  getChecklist:          (id: string)                    => invoke('checklist:getWithSteps', id),
+  completeStep:          (payload: unknown)              => invoke('checklist:completeStep', payload),
+  finalizeChecklist:     (payload: unknown)              => invoke('checklist:finalize', payload),
+  getChecklistHistory:   ()                              => invoke('checklist:getHistory'),
 
-  // Shell
-  openPath:          (p: string)        => invoke('shell:openPath', p),
-  showInFolder:      (p: string)        => invoke('shell:showItemInFolder', p),
+  // ── Audit Log ─────────────────────────────────────────────────────────────
+  getAuditLog:           (opts?: unknown)                => invoke('auditLog:getRecent', opts),
+
+  // ── Shell helpers ─────────────────────────────────────────────────────────
+  openPath:              (p: string)                     => invoke('shell:openPath', p),
+  showInFolder:          (p: string)                     => invoke('shell:showItemInFolder', p),
 });
 
-// Type declaration for renderer
-export type ElectronAPI = typeof import('./index')['electronAPI'];
+// ── Global Window type ────────────────────────────────────────────────────────
+// Gives window.electronAPI full TypeScript types in all /src/ renderer files.
+
+declare global {
+  interface Window {
+    electronAPI: {
+      getState:              () => Promise<{ onboardingComplete: boolean; currentUser: unknown }>;
+      getCurrentUser:        () => Promise<unknown>;
+      getOnboardingState:    () => Promise<{ completed: boolean }>;
+      login:                 (u: string, p: string) => Promise<{ ok: boolean; user?: unknown; error?: string }>;
+      logout:                () => Promise<void>;
+      completeOnboarding:    (payload: unknown) => Promise<void>;
+      getDashboardMetrics:   () => Promise<unknown>;
+      getDashboardSummary:   () => Promise<unknown>;
+      getRecentAuditItems:   () => Promise<unknown[]>;
+      getStore:              () => Promise<unknown>;
+      getSettings:           () => Promise<Record<string, string>>;
+      saveSettings:          (data: unknown) => Promise<void>;
+      runMockImport:         () => Promise<unknown>;
+      importFromFile:        (filePath: string, format: string) => Promise<unknown>;
+      getImportHistory:      () => Promise<unknown[]>;
+      openFileDialog:        () => Promise<{ canceled: boolean; filePaths: string[] }>;
+      getItems:              (opts: unknown) => Promise<unknown[]>;
+      getDepartments:        () => Promise<unknown[]>;
+      getCategories:         () => Promise<unknown[]>;
+      runItemAudit:          () => Promise<unknown>;
+      getPendingItemRecs:    (jobRunId?: string) => Promise<unknown[]>;
+      approveItemRec:        (recId: string, notes?: string) => Promise<void>;
+      rejectItemRec:         (recId: string, notes?: string) => Promise<void>;
+      runPricingAnalysis:    () => Promise<unknown>;
+      getPendingPriceRecs:   (jobRunId?: string) => Promise<unknown[]>;
+      approvePriceRec:       (recId: string, notes?: string) => Promise<void>;
+      rejectPriceRec:        (recId: string, notes?: string) => Promise<void>;
+      exportApprovedPrices:  () => Promise<unknown>;
+      generateReport:        (params: unknown) => Promise<unknown[]>;
+      getReportArchive:      () => Promise<unknown[]>;
+      getReportById:         (id: string) => Promise<unknown>;
+      getShifts:             () => Promise<unknown[]>;
+      openShift:             () => Promise<unknown>;
+      closeShift:            (shiftId: string) => Promise<void>;
+      startChecklist:        (templateId: string) => Promise<unknown>;
+      getChecklists:         () => Promise<unknown[]>;
+      createChecklist:       (payload: unknown) => Promise<unknown>;
+      getChecklist:          (id: string) => Promise<unknown>;
+      completeStep:          (payload: unknown) => Promise<void>;
+      finalizeChecklist:     (payload: unknown) => Promise<void>;
+      getChecklistHistory:   () => Promise<unknown[]>;
+      getAuditLog:           (opts?: unknown) => Promise<unknown[]>;
+      openPath:              (p: string) => Promise<void>;
+      showInFolder:          (p: string) => Promise<void>;
+    };
+  }
+}

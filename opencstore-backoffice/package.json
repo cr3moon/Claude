@@ -15,7 +15,10 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
     "typecheck": "tsc --noEmit",
-    "seed": "ts-node database/seeds/seed.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "seed": "ts-node --project tsconfig.electron.json database/seeds/seed.ts"
   },
   "keywords": ["pos", "c-store", "gas-station", "back-office", "electron", "sqlite"],
   "license": "MIT",
@@ -50,6 +53,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
+    "vitest": "^1.4.0",
     "wait-on": "^7.2.0"
   },
   "build": {
@@ -60,19 +64,20 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "sample-data/**/*"
+    ],
+    "extraResources": [
+      { "from": "sample-data", "to": "sample-data" }
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": "nsis"
     },
     "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.icns"
+      "target": "dmg"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "assets/icon.png"
+      "target": "AppImage"
     }
   }
 }

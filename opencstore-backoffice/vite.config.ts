@@ -4,9 +4,9 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  // Renderer root is now /src — index.html lives at project root
+  // Renderer root is /src — index.html lives at src/index.html
   root: resolve(__dirname, 'src'),
-  publicDir: resolve(__dirname, 'public'),
+  // publicDir: no public/ folder needed for the MVP; add later for icons/fonts
   build: {
     outDir: resolve(__dirname, 'dist/renderer'),
     emptyOutDir: true,

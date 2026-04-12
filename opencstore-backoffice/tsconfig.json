@@ -17,6 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
+      "@/*": ["src/*"],
       "@renderer/*": ["app/renderer/*"],
       "@backend/*": ["backend/*"],
       "@database/*": ["database/*"],
@@ -24,5 +25,5 @@
       "@audit/*": ["audit/*"]
     }
   },
-  "include": ["app/renderer/**/*", "app/preload/**/*"]
+  "include": ["src/**/*", "app/renderer/**/*", "app/preload/**/*"]
 }

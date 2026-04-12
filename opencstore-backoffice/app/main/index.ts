@@ -60,7 +60,7 @@ function createWindow(): void {
     mainWindow.loadURL(process.env['VITE_DEV_SERVER_URL']);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
   }
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -93,6 +93,18 @@ ipcMain.handle('app:getState', () => ({
   version: app.getVersion(),
 }));
 
+ipcMain.handle('app:getOnboardingState', () => ({
+  completed: dbService.isOnboardingComplete(),
+}));
+
+ipcMain.handle('app:getCurrentUser', () => {
+  if (!activeUserId) return null;
+  const user = dbService.get<{
+    id: string; username: string; display_name: string; role: string; store_id: string;
+  }>('SELECT id, username, display_name, role, store_id FROM users WHERE id=?', [activeUserId]);
+  return user ?? null;
+});
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('auth:login', async (_e, { username, password }: { username: string; password: string }) => {
@@ -103,14 +115,14 @@ ipcMain.handle('auth:login', async (_e, { username, password }: { username: stri
   if (!user) {
     auditLogger.log({ eventType: 'auth', eventSubtype: 'login_failed',
       description: `Login failed: unknown user "${username}"`, result: 'failure' });
-    return { success: false, error: 'Invalid username or password.' };
+    return { ok: false, error: 'Invalid username or password.' };
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
     auditLogger.log({ storeId: user.store_id, eventType: 'auth', eventSubtype: 'login_failed',
       description: `Login failed for user ${username}`, result: 'failure' });
-    return { success: false, error: 'Invalid username or password.' };
+    return { ok: false, error: 'Invalid username or password.' };
   }
 
   activeUserId  = user.id;
@@ -119,7 +131,10 @@ ipcMain.handle('auth:login', async (_e, { username, password }: { username: stri
   auditLogger.log({ storeId: user.store_id, userId: user.id, eventType: 'auth', eventSubtype: 'login',
     description: `User "${user.display_name}" logged in.` });
 
-  return { success: true, user: { id: user.id, display_name: user.display_name, role: user.role, store_id: user.store_id } };
+  return {
+    ok: true,
+    user: { id: user.id, username, display_name: user.display_name, role: user.role, store_id: user.store_id },
+  };
 });
 
 ipcMain.handle('auth:logout', () => {
@@ -168,9 +183,118 @@ ipcMain.handle('dashboard:getSummary', () => {
   return dbService.getDashboardSummary(activeStoreId);
 });
 
+ipcMain.handle('dashboard:getMetrics', () => {
+  if (!activeStoreId) return { error: 'Not authenticated' };
+  const totalSkus = (dbService.get<{ n: number }>(
+    'SELECT COUNT(*) as n FROM plu_items WHERE store_id=? AND is_active=1', [activeStoreId]
+  ))?.n ?? 0;
+  const pendingAuditItems = (dbService.get<{ n: number }>(
+    "SELECT COUNT(*) as n FROM item_recommendations WHERE store_id=? AND status='pending'", [activeStoreId]
+  ))?.n ?? 0;
+  const pendingPriceChanges = (dbService.get<{ n: number }>(
+    "SELECT COUNT(*) as n FROM pricing_recommendations WHERE store_id=? AND status IN ('pending','approved')", [activeStoreId]
+  ))?.n ?? 0;
+  const openShifts = (dbService.get<{ n: number }>(
+    "SELECT COUNT(*) as n FROM shifts WHERE store_id=? AND status='open'", [activeStoreId]
+  ))?.n ?? 0;
+  const lastImport = dbService.get<{ completed_at: string; status: string }>(
+    'SELECT completed_at, status FROM import_jobs WHERE store_id=? ORDER BY created_at DESC LIMIT 1',
+    [activeStoreId]
+  );
+  return {
+    totalSkus,
+    pendingAuditItems,
+    pendingPriceChanges,
+    openShifts,
+    lastImportAt:     lastImport?.completed_at ?? null,
+    lastImportStatus: lastImport?.status ?? null,
+  };
+});
+
+ipcMain.handle('dashboard:getRecentAuditItems', () => {
+  if (!activeStoreId) return [];
+  return dbService.all(
+    `SELECT r.id, p.pos_plu_id, p.description, r.rule_code, r.created_at
+     FROM item_recommendations r
+     JOIN plu_items p ON p.id = r.plu_item_id
+     WHERE r.store_id=? AND r.status='pending'
+     ORDER BY r.created_at DESC LIMIT 10`,
+    [activeStoreId]
+  );
+});
+
 // ── Store ────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('store:get', () => dbService.getStore());
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+ipcMain.handle('settings:get', () => {
+  const rows = dbService.all<{ key: string; value: string }>(
+    'SELECT key, value FROM app_settings', []
+  );
+  return Object.fromEntries(rows.map(r => [r.key, r.value]));
+});
+
+ipcMain.handle('settings:save', (_e, data: Record<string, string>) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  const now = new Date().toISOString();
+  dbService.transaction(() => {
+    for (const [key, value] of Object.entries(data)) {
+      dbService.run(
+        `INSERT INTO app_settings(key, value, updated_at) VALUES(?,?,?)
+         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`,
+        [key, String(value), now]
+      );
+    }
+  });
+  auditLogger.log({ storeId: activeStoreId ?? undefined, userId: activeUserId,
+    eventType: 'settings', eventSubtype: 'updated',
+    description: `Settings updated: ${Object.keys(data).join(', ')}` });
+  return { success: true };
+});
+
+// ── Shifts ───────────────────────────────────────────────────────────────────
+
+ipcMain.handle('shifts:getAll', () => {
+  if (!activeStoreId) return [];
+  return dbService.all(
+    `SELECT s.*, u.display_name as cashier_name
+     FROM shifts s
+     LEFT JOIN users u ON u.id = s.cashier_user_id
+     WHERE s.store_id=?
+     ORDER BY s.opened_at DESC LIMIT 50`,
+    [activeStoreId]
+  );
+});
+
+ipcMain.handle('shifts:open', () => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  const id  = uuidv4();
+  const now = new Date().toISOString();
+  dbService.run(
+    `INSERT INTO shifts(id, store_id, cashier_user_id, status, opened_at, created_at, updated_at)
+     VALUES(?,?,?,'open',?,?,?)`,
+    [id, activeStoreId, activeUserId, now, now, now]
+  );
+  auditLogger.log({ storeId: activeStoreId, userId: activeUserId,
+    eventType: 'shift', eventSubtype: 'opened',
+    description: 'Shift opened.', entityId: id });
+  return { id, status: 'open', opened_at: now };
+});
+
+ipcMain.handle('shifts:close', (_e, { shiftId }: { shiftId: string }) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  const now = new Date().toISOString();
+  dbService.run(
+    `UPDATE shifts SET status='closed', closed_at=?, updated_at=? WHERE id=?`,
+    [now, now, shiftId]
+  );
+  auditLogger.log({ storeId: activeStoreId ?? undefined, userId: activeUserId,
+    eventType: 'shift', eventSubtype: 'closed',
+    description: `Shift ${shiftId} closed.`, entityId: shiftId });
+  return { success: true };
+});
 
 // ── Import ───────────────────────────────────────────────────────────────────
 
@@ -357,6 +481,35 @@ ipcMain.handle('categories:getAll', () => {
 });
 
 // ── Checklists ────────────────────────────────────────────────────────────────
+
+/** New-style: start a checklist from a template id (e.g. 'shift_open') */
+ipcMain.handle('checklist:start', (_e, { templateId }: { templateId: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  const id  = uuidv4();
+  const now = new Date().toISOString();
+  const steps = getDefaultSteps(templateId);
+  dbService.transaction(() => {
+    dbService.run(
+      `INSERT INTO shift_checklists(id,store_id,checklist_type,operator_name,operator_initials,started_at,is_complete,created_at,updated_at)
+       VALUES(?,?,?,
+         (SELECT display_name FROM users WHERE id=?),
+         (SELECT UPPER(SUBSTR(display_name,1,2)) FROM users WHERE id=?),
+         ?,0,?,?)`,
+      [id, activeStoreId, templateId, activeUserId, activeUserId, now, now, now]
+    );
+    steps.forEach((s, i) => {
+      dbService.run(
+        `INSERT INTO checklist_steps(id,checklist_id,step_key,step_label,step_order,completed,created_at)
+         VALUES(?,?,?,?,?,0,?)`,
+        [uuidv4(), id, s.key, s.label, i, now]
+      );
+    });
+  });
+  auditLogger.log({ storeId: activeStoreId, userId: activeUserId,
+    eventType: 'checklist', eventSubtype: 'started',
+    description: `Checklist "${templateId}" started.`, entityId: id });
+  return { id, templateId, steps };
+});
 
 ipcMain.handle('checklist:create', (_e, payload: {
   checklistType: string; operatorName: string; operatorInitials: string; shiftId?: string;
