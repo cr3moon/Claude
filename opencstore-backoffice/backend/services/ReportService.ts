@@ -12,9 +12,9 @@ import type { AuditLogger } from '../../audit/AuditLogger';
 export type ReportType =
   | 'daily_shift'
   | 'eod_close'
-  | 'sales_by_dept'
+  | 'sales_by_department'
   | 'sales_by_category'
-  | 'sales_by_item'
+  | 'top_items_by_revenue'
   | 'fuel_summary'
   | 'tender_summary'
   | 'tax_summary'
@@ -22,8 +22,10 @@ export type ReportType =
   | 'cashier_performance'
   | 'margin_report'
   | 'price_change_history'
-  | 'item_compliance'
-  | 'over_short';
+  | 'audit_recommendations'
+  | 'over_short'
+  | 'low_margin_items'
+  | 'import_job_log';
 
 export interface ReportParams {
   storeId: string;
@@ -50,17 +52,19 @@ export class ReportService {
     let data: unknown;
 
     switch (reportType) {
-      case 'sales_by_dept':       data = this.salesByDept(storeId, start, end); break;
-      case 'sales_by_category':   data = this.salesByCategory(storeId, start, end); break;
-      case 'sales_by_item':       data = this.salesByItem(storeId, start, end, params.categoryId); break;
-      case 'tender_summary':      data = this.tenderSummary(storeId, start, end); break;
-      case 'tax_summary':         data = this.taxSummary(storeId, start, end); break;
-      case 'voids_refunds':       data = this.voidsRefunds(storeId, start, end); break;
-      case 'cashier_performance': data = this.cashierPerformance(storeId, start, end); break;
-      case 'margin_report':       data = this.marginReport(storeId); break;
-      case 'price_change_history':data = this.priceChangeHistory(storeId, start, end); break;
-      case 'item_compliance':     data = this.itemCompliance(storeId); break;
-      case 'over_short':          data = this.overShort(storeId, start, end); break;
+      case 'sales_by_department':  data = this.salesByDept(storeId, start, end); break;
+      case 'sales_by_category':    data = this.salesByCategory(storeId, start, end); break;
+      case 'top_items_by_revenue': data = this.salesByItem(storeId, start, end, params.categoryId); break;
+      case 'tender_summary':       data = this.tenderSummary(storeId, start, end); break;
+      case 'tax_summary':          data = this.taxSummary(storeId, start, end); break;
+      case 'voids_refunds':        data = this.voidsRefunds(storeId, start, end); break;
+      case 'cashier_performance':  data = this.cashierPerformance(storeId, start, end); break;
+      case 'margin_report':        data = this.marginReport(storeId); break;
+      case 'price_change_history': data = this.priceChangeHistory(storeId, start, end); break;
+      case 'audit_recommendations':data = this.auditRecommendations(storeId); break;
+      case 'over_short':           data = this.overShort(storeId, start, end); break;
+      case 'low_margin_items':     data = this.lowMarginItems(storeId); break;
+      case 'import_job_log':       data = this.importJobLog(storeId, start, end); break;
       case 'daily_shift':
       case 'eod_close':
       default:                    data = this.dailySummary(storeId, start, end); break;
@@ -250,23 +254,79 @@ export class ReportService {
     );
   }
 
-  private itemCompliance(storeId: string) {
-    const counts = this.db.get<{ total: number; missing_desc: number; missing_upc: number; missing_dept: number; dup_upc: number }>(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(CASE WHEN description='' OR description IS NULL THEN 1 ELSE 0 END) AS missing_desc,
-         SUM(CASE WHEN (SELECT COUNT(*) FROM scan_codes sc WHERE sc.plu_item_id=p.id)=0 THEN 1 ELSE 0 END) AS missing_upc,
-         SUM(CASE WHEN department_id IS NULL THEN 1 ELSE 0 END) AS missing_dept,
-         0 AS dup_upc
-       FROM plu_items p WHERE store_id=? AND is_active=1`,
+  private auditRecommendations(storeId: string) {
+    return this.db.all(
+      `SELECT r.created_at, p.pos_plu_id, p.description, r.rule_code,
+              CASE WHEN r.requires_manual_review=1 THEN 'error' ELSE 'warning' END AS severity,
+              r.reason AS suggestion, r.status
+       FROM item_recommendations r
+       JOIN plu_items p ON p.id = r.plu_item_id
+       WHERE r.store_id=?
+       ORDER BY r.created_at DESC LIMIT 500`,
       [storeId]
     );
-    const recommendations = this.db.all(
-      `SELECT rule_code, COUNT(*) as cnt FROM item_recommendations
-       WHERE store_id=? AND status='pending' GROUP BY rule_code ORDER BY cnt DESC`,
+  }
+
+  /**
+   * Items whose current margin falls below the department's minimum acceptable
+   * margin. Target/minimum margins here mirror src/modules/pricing/pricing-rules.ts
+   * (DEPT_MARGIN_RULES) — the main process has no access to that renderer-side
+   * module, so keep the two in sync by hand if department targets change.
+   */
+  private lowMarginItems(storeId: string) {
+    const deptTarget = (col: string) => `
+      CASE
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%tobacco%' OR LOWER(COALESCE(${col},'')) LIKE '%cigar%' OR LOWER(COALESCE(${col},'')) LIKE '%vape%' OR LOWER(COALESCE(${col},'')) LIKE '%nicotine%' THEN 30
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%beer%' OR LOWER(COALESCE(${col},'')) LIKE '%wine%' OR LOWER(COALESCE(${col},'')) LIKE '%liquor%' OR LOWER(COALESCE(${col},'')) LIKE '%alcohol%' THEN 28
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%bev%' OR LOWER(COALESCE(${col},'')) LIKE '%water%' OR LOWER(COALESCE(${col},'')) LIKE '%juice%' OR LOWER(COALESCE(${col},'')) LIKE '%energy drink%' THEN 40
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%snack%' OR LOWER(COALESCE(${col},'')) LIKE '%chip%' THEN 45
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%candy%' OR LOWER(COALESCE(${col},'')) LIKE '%chocolate%' THEN 45
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%dairy%' OR LOWER(COALESCE(${col},'')) LIKE '%milk%' OR LOWER(COALESCE(${col},'')) LIKE '%egg%' OR LOWER(COALESCE(${col},'')) LIKE '%cheese%' THEN 20
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%deli%' OR LOWER(COALESCE(${col},'')) LIKE '%bakery%' OR LOWER(COALESCE(${col},'')) LIKE '%hot food%' THEN 55
+        ELSE 35
+      END`;
+    const deptMin = (col: string) => `
+      CASE
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%tobacco%' OR LOWER(COALESCE(${col},'')) LIKE '%cigar%' OR LOWER(COALESCE(${col},'')) LIKE '%vape%' OR LOWER(COALESCE(${col},'')) LIKE '%nicotine%' THEN 18
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%beer%' OR LOWER(COALESCE(${col},'')) LIKE '%wine%' OR LOWER(COALESCE(${col},'')) LIKE '%liquor%' OR LOWER(COALESCE(${col},'')) LIKE '%alcohol%' THEN 16
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%bev%' OR LOWER(COALESCE(${col},'')) LIKE '%water%' OR LOWER(COALESCE(${col},'')) LIKE '%juice%' OR LOWER(COALESCE(${col},'')) LIKE '%energy drink%' THEN 26
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%snack%' OR LOWER(COALESCE(${col},'')) LIKE '%chip%' THEN 30
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%candy%' OR LOWER(COALESCE(${col},'')) LIKE '%chocolate%' THEN 30
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%dairy%' OR LOWER(COALESCE(${col},'')) LIKE '%milk%' OR LOWER(COALESCE(${col},'')) LIKE '%egg%' OR LOWER(COALESCE(${col},'')) LIKE '%cheese%' THEN 10
+        WHEN LOWER(COALESCE(${col},'')) LIKE '%deli%' OR LOWER(COALESCE(${col},'')) LIKE '%bakery%' OR LOWER(COALESCE(${col},'')) LIKE '%hot food%' THEN 40
+        ELSE 20
+      END`;
+
+    return this.db.all(
+      `WITH scored AS (
+         SELECT p.pos_plu_id, p.description, d.name AS dept_name,
+                p.retail_price AS current_price, p.cost AS current_cost,
+                ROUND((p.retail_price - COALESCE(p.cost,0)) / p.retail_price * 100, 1) AS current_margin,
+                ${deptTarget('d.name')} AS target_margin,
+                ${deptMin('d.name')} AS min_margin
+         FROM plu_items p
+         LEFT JOIN departments d ON d.id = p.department_id
+         WHERE p.store_id=? AND p.is_active=1 AND p.retail_price IS NOT NULL AND p.retail_price > 0
+       )
+       SELECT pos_plu_id, description, dept_name, current_price, current_cost, current_margin, target_margin,
+              ROUND(target_margin - current_margin, 1) AS gap
+       FROM scored
+       WHERE current_margin < min_margin
+       ORDER BY gap DESC LIMIT 500`,
       [storeId]
     );
-    return { counts, recommendations };
+  }
+
+  private importJobLog(storeId: string, start: string, end: string) {
+    return this.db.all(
+      `SELECT ij.created_at, ij.source_type, ij.adapter_type, ij.records_total, ij.records_ok,
+              ij.records_skipped, ij.records_error, ij.status, u.display_name AS triggered_by
+       FROM import_jobs ij
+       LEFT JOIN users u ON u.id = ij.triggered_by
+       WHERE ij.store_id=? AND ij.created_at BETWEEN ? AND ?
+       ORDER BY ij.created_at DESC LIMIT 200`,
+      [storeId, start, end]
+    );
   }
 
   private overShort(storeId: string, start: string, end: string) {

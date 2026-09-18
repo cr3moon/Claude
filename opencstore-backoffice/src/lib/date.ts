@@ -66,11 +66,11 @@ export function parseIsoDate(isoDate: string): Date {
   return new Date(y, m - 1, d);
 }
 
-/** How many days between two ISO date strings (inclusive) */
+/** How many days between two ISO date strings */
 export function daysBetween(startIso: string, endIso: string): number {
   const a = parseIsoDate(startIso).getTime();
   const b = parseIsoDate(endIso).getTime();
-  return Math.round(Math.abs(b - a) / 86_400_000) + 1;
+  return Math.round(Math.abs(b - a) / 86_400_000);
 }
 
 /** First day of the current month as 'YYYY-MM-DD' */

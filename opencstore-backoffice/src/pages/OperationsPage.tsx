@@ -2,30 +2,13 @@ import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
-import { OperationsService } from '../modules/operations/operations.service';
-import { CHECKLIST_TEMPLATES, checklistLabel } from '../modules/operations/checklist-definitions';
+import { OperationsService, type ShiftRecord, type ChecklistRecord } from '../modules/operations/operations.service';
+import { CHECKLIST_TEMPLATES, checklistLabel, type ChecklistType } from '../modules/operations/checklist-definitions';
 import { fmtDateTime } from '../lib/date';
-
-interface ShiftRecord {
-  id:             string;
-  cashier_name:   string;
-  status:         string;
-  opened_at:      string;
-  closed_at:      string | null;
-}
-
-interface ChecklistRun {
-  id:          string;
-  template_id: string;
-  status:      string;
-  created_at:  string;
-  steps_done:  number;
-  steps_total: number;
-}
 
 export default function OperationsPage() {
   const [shifts,     setShifts]     = useState<ShiftRecord[]>([]);
-  const [checklists, setChecklists] = useState<ChecklistRun[]>([]);
+  const [checklists, setChecklists] = useState<ChecklistRecord[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [opening,    setOpening]    = useState(false);
 
@@ -34,10 +17,10 @@ export default function OperationsPage() {
     try {
       const [s, c] = await Promise.all([
         OperationsService.getShifts(),
-        OperationsService.getChecklists(),
+        OperationsService.getHistory(),
       ]);
-      setShifts(s as ShiftRecord[]);
-      setChecklists(c as ChecklistRun[]);
+      setShifts(s);
+      setChecklists(c);
     } finally {
       setLoading(false);
     }
@@ -60,7 +43,7 @@ export default function OperationsPage() {
     await load();
   }
 
-  async function startChecklist(templateId: string) {
+  async function startChecklist(templateId: ChecklistType) {
     await OperationsService.startChecklist(templateId);
     await load();
   }
@@ -141,12 +124,13 @@ export default function OperationsPage() {
             <div className="space-y-2">
               {checklists.slice(0, 8).map(c => (
                 <div key={c.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">{checklistLabel(c.template_id)}</span>
+                  <span className="text-gray-700">{checklistLabel(c.checklist_type)}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">
-                      {c.steps_done}/{c.steps_total}
-                    </span>
-                    <StatusBadge label={c.status} status={c.status} />
+                    <span className="text-xs text-gray-400">{fmtDateTime(c.started_at)}</span>
+                    <StatusBadge
+                      label={c.is_complete ? 'complete' : 'in progress'}
+                      status={c.is_complete ? 'complete' : 'in_progress'}
+                    />
                   </div>
                 </div>
               ))}

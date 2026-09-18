@@ -6,6 +6,16 @@
 
 import type { ChecklistType } from './checklist-definitions';
 
+export interface ShiftRecord {
+  id:              string;
+  store_id:        string;
+  cashier_user_id: string | null;
+  cashier_name:    string | null;
+  status:          'open' | 'closed';
+  opened_at:       string;
+  closed_at:       string | null;
+}
+
 export interface ChecklistRecord {
   id:                 string;
   checklist_type:     ChecklistType;
@@ -32,6 +42,26 @@ export interface ChecklistStep {
 }
 
 export const OperationsService = {
+  async getShifts(): Promise<ShiftRecord[]> {
+    return window.electronAPI.getShifts() as Promise<ShiftRecord[]>;
+  },
+
+  async openShift(): Promise<{ id: string; status: string; opened_at: string }> {
+    return window.electronAPI.openShift();
+  },
+
+  async closeShift(shiftId: string): Promise<void> {
+    await window.electronAPI.closeShift(shiftId);
+  },
+
+  async startChecklist(
+    templateId: ChecklistType
+  ): Promise<{ id: string; templateId: string; steps: { key: string; label: string }[] }> {
+    return window.electronAPI.startChecklist(templateId) as Promise<{
+      id: string; templateId: string; steps: { key: string; label: string }[];
+    }>;
+  },
+
   async createChecklist(
     type: ChecklistType,
     operatorName: string,

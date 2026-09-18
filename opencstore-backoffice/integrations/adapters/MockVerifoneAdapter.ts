@@ -176,10 +176,12 @@ export class MockVerifoneAdapter implements IPosAdapter {
         severity: 'warning' as const,
       }));
 
+    const errors: typeof warnings = [];
+
     return {
-      valid: warnings.filter(w => w.severity === 'error').length === 0,
+      valid: errors.length === 0,
       warnings,
-      errors: [],
+      errors,
       dryRunReport: `Dry-run complete. ${changeSet.changes.length} changes reviewed. ${warnings.length} warning(s).`,
     };
   }

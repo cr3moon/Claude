@@ -227,6 +227,8 @@ CREATE TABLE IF NOT EXISTS shifts (
   pos_shift_id    TEXT,
   shift_number    INTEGER,
   cashier_id      TEXT REFERENCES pos_cashiers(id),
+  cashier_user_id TEXT REFERENCES users(id),  -- set when the shift is opened manually from the Operations page
+  status          TEXT NOT NULL DEFAULT 'open', -- 'open' | 'closed'
   opened_at       TEXT NOT NULL,
   closed_at       TEXT,
   opening_cash    REAL DEFAULT 0,

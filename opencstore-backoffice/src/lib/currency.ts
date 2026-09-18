@@ -55,17 +55,28 @@ export function grossMarginPct(retail: number, cost: number): number | null {
 
 /**
  * Apply a price-ending strategy.
- * Given a raw price, round up to the nearest acceptable ending.
+ * Given a raw price, snap to the nearest acceptable ending (considering
+ * both the current and next dollar amount, since the nearest ending to
+ * e.g. $1.97 is $1.99, not something in the $2 range).
  * endings: array of decimals e.g. [0.99, 0.49, 0.29, 0.09]
  */
 export function applyPriceEnding(price: number, endings: number[] = [0.99, 0.49, 0.29, 0.09]): number {
   const base = Math.floor(price);
-  for (const ending of endings.sort((a, b) => b - a)) {
-    const candidate = round2(base + ending);
-    if (candidate >= price) return candidate;
+  const candidates = [
+    ...endings.map(e => round2(base + e)),
+    ...endings.map(e => round2(base + 1 + e)),
+  ];
+
+  let best = candidates[0];
+  let bestDiff = Math.abs(best - price);
+  for (const candidate of candidates) {
+    const diff = Math.abs(candidate - price);
+    if (diff < bestDiff) {
+      best = candidate;
+      bestDiff = diff;
+    }
   }
-  // Fallback: next highest .99
-  return round2(Math.ceil(price) - 0.01);
+  return best;
 }
 
 /** Parse a string like "$3.49" or "3.49" to a number safely */

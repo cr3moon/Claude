@@ -6,7 +6,7 @@ import { can } from '../modules/auth/roles';
 interface AppSettings {
   store_name:        string;
   store_address:     string;
-  default_tax_rate:  number;
+  default_tax_rate:  string;
   adapter_type:      string;
   timezone:          string;
 }
@@ -14,19 +14,19 @@ interface AppSettings {
 export default function SettingsPage() {
   const { user } = useAuth();
   const [settings, setSettings] = useState<AppSettings>({
-    store_name: '', store_address: '', default_tax_rate: 0, adapter_type: '', timezone: 'UTC',
+    store_name: '', store_address: '', default_tax_rate: '0', adapter_type: '', timezone: 'UTC',
   });
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
 
-  const isOwner = user ? can(user.role, 'settings:write') : false;
+  const isOwner = user ? can(user.role, 'edit_settings') : false;
 
   useEffect(() => {
     (async () => {
       try {
-        const s = await window.electronAPI.getSettings?.() as AppSettings;
-        if (s) setSettings(s);
+        const s = await window.electronAPI.getSettings();
+        setSettings(prev => ({ ...prev, ...s }));
       } finally {
         setLoading(false);
       }

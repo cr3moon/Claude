@@ -12,13 +12,13 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard',  label: 'Dashboard',   icon: '▦'  },
-  { to: '/items',      label: 'Item Audit',  icon: '✓',  perm: 'items:read'      },
-  { to: '/pricing',    label: 'Pricing',     icon: '$',  perm: 'pricing:read'    },
-  { to: '/imports',    label: 'Imports',     icon: '↑',  perm: 'imports:run'     },
-  { to: '/reports',    label: 'Reports',     icon: '≡',  perm: 'reports:read'    },
-  { to: '/operations', label: 'Operations',  icon: '◷',  perm: 'shifts:manage'   },
-  { to: '/audit-log',  label: 'Audit Log',   icon: '⊞',  perm: 'auditlog:read'   },
-  { to: '/settings',   label: 'Settings',    icon: '⚙',  perm: 'settings:read'   },
+  { to: '/items',      label: 'Item Audit',  icon: '✓',  perm: 'view_item_audit' },
+  { to: '/pricing',    label: 'Pricing',     icon: '$',  perm: 'view_pricing'    },
+  { to: '/imports',    label: 'Imports',     icon: '↑',  perm: 'view_imports'    },
+  { to: '/reports',    label: 'Reports',     icon: '≡',  perm: 'view_reports'    },
+  { to: '/operations', label: 'Operations',  icon: '◷',  perm: 'view_operations' },
+  { to: '/audit-log',  label: 'Audit Log',   icon: '⊞',  perm: 'view_audit_log'  },
+  { to: '/settings',   label: 'Settings',    icon: '⚙',  perm: 'view_settings'   },
 ];
 
 export default function AppShell() {

@@ -3,24 +3,12 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
 import ConfirmDialog from '../components/common/ConfirmDialog';
-import { PricingEngineService } from '../modules/pricing/pricing-engine.service';
-import { fmtMoney, fmtPct } from '../lib/currency';
-
-interface PricingRec {
-  id:             string;
-  pos_plu_id:     string;
-  description:    string;
-  dept_name:      string;
-  current_price:  number;
-  current_cost:   number;
-  suggested_price: number;
-  current_margin: number;
-  target_margin:  number;
-  status:         string;
-}
+import { PricingEngineService, type PriceRecommendation } from '../modules/pricing/pricing-engine.service';
+import { resolveDeptRule } from '../modules/pricing/pricing-rules';
+import { fmtMoney, fmtPctNum } from '../lib/currency';
 
 export default function PricingPage() {
-  const [recs,    setRecs]    = useState<PricingRec[]>([]);
+  const [recs,    setRecs]    = useState<PriceRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [applyOpen, setApplyOpen] = useState(false);
@@ -29,7 +17,7 @@ export default function PricingPage() {
     setLoading(true);
     try {
       const data = await PricingEngineService.getPending();
-      setRecs(data as PricingRec[]);
+      setRecs(data);
     } finally {
       setLoading(false);
     }
@@ -118,12 +106,14 @@ export default function PricingPage() {
                   <td className="max-w-[140px] truncate text-xs">{rec.description}</td>
                   <td className="text-xs text-gray-500">{rec.dept_name}</td>
                   <td className="text-right tabular-nums">{fmtMoney(rec.current_cost)}</td>
-                  <td className="text-right tabular-nums">{fmtMoney(rec.current_price)}</td>
+                  <td className="text-right tabular-nums">{fmtMoney(rec.current_retail)}</td>
                   <td className="text-right tabular-nums font-semibold text-blue-700">
-                    {fmtMoney(rec.suggested_price)}
+                    {fmtMoney(rec.recommended_retail)}
                   </td>
-                  <td className="text-right tabular-nums">{fmtPct(rec.current_margin)}</td>
-                  <td className="text-right tabular-nums text-gray-400">{fmtPct(rec.target_margin)}</td>
+                  <td className="text-right tabular-nums">{fmtPctNum(rec.current_margin_pct)}</td>
+                  <td className="text-right tabular-nums text-gray-400">
+                    {fmtPctNum(resolveDeptRule(rec.dept_name).targetMarginPct)}
+                  </td>
                   <td><StatusBadge label={rec.status} status={rec.status} /></td>
                   <td className="text-right">
                     {rec.status === 'pending' && (

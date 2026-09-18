@@ -1,203 +1,137 @@
 /**
  * src/modules/items/item-normalization.rules.ts
  *
- * Configurable rule definitions for the item audit engine.
- * Rules are data objects – the audit service iterates them against each item.
- * Add, disable, or tune rules here without touching the engine logic.
+ * Executable rule definitions for the item audit engine.
+ * Each rule is a pure predicate over a single PLU item — the engine runs every
+ * enabled rule against every item and records a recommendation for each match.
  *
  * Classification guidance is based on widely-observed convenience-store
  * merchandising practices.  No official Conexxus certification is claimed.
  */
 
-export type RuleCode =
-  | 'BLANK_DESC'
-  | 'BLANK_SHORT_DESC'
-  | 'SHORT_DESC_TOO_LONG'
-  | 'DUPLICATE_UPC'
-  | 'DUPLICATE_DESC'
-  | 'MISSING_UPC'
-  | 'BAD_UPC_LENGTH'
-  | 'MISSING_DEPT'
-  | 'MISSING_CATEGORY'
-  | 'MISSING_PRODUCT_CODE'
-  | 'INCONSISTENT_UOM'
-  | 'WRONG_TAX_TOBACCO'
-  | 'WRONG_AGE_TOBACCO'
-  | 'WRONG_AGE_ALCOHOL'
-  | 'WRONG_DEPT_ENERGY'
-  | 'NO_COST'
-  | 'NO_PRICE'
-  | 'PRICE_BELOW_COST'
-  | 'INCONSISTENT_PACK_WORDING';
+export type Severity = 'error' | 'warning' | 'info';
+
+export interface RawPluItem {
+  pos_plu_id:     string;
+  description:    string;
+  short_desc?:    string | null;
+  upc_code?:      string | null;
+  dept_name?:     string | null;
+  category_name?: string | null;
+  unit_price:     number;
+  cost?:          number | null;
+  tax_rate?:      number;
+  active?:        boolean;
+}
 
 export interface NormalizationRule {
-  ruleCode:            RuleCode;
-  issueType:           string;
-  description:         string;
-  defaultConfidence:   number;   // 0–1
-  requiresManualReview: boolean;
-  enabled:             boolean;
+  code:     string;
+  severity: Severity;
+  message:  string;
+  check:    (item: RawPluItem) => boolean;
 }
 
 export const NORMALIZATION_RULES: NormalizationRule[] = [
   {
-    ruleCode:             'BLANK_DESC',
-    issueType:            'missing_data',
-    description:          'Item has no description. A name is required for receipts and reports.',
-    defaultConfidence:    1.0,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'MISSING_DESC',
+    severity: 'error',
+    message:  'Item has no description. A name is required for receipts and reports.',
+    check:    item => !item.description || item.description.trim() === '',
   },
   {
-    ruleCode:             'BLANK_SHORT_DESC',
-    issueType:            'missing_data',
-    description:          'Item is missing a short description (receipt abbreviation).',
-    defaultConfidence:    0.85,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'MISSING_SHORT_DESC',
+    severity: 'warning',
+    message:  'Item is missing a short description (receipt abbreviation).',
+    check:    item => !item.short_desc || item.short_desc.trim() === '',
   },
   {
-    ruleCode:             'SHORT_DESC_TOO_LONG',
-    issueType:            'formatting',
-    description:          'Short description exceeds 12 characters and may be truncated on receipt printers.',
-    defaultConfidence:    0.90,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'SHORT_DESC_TOO_LONG',
+    severity: 'warning',
+    message:  'Short description exceeds 12 characters and may be truncated on receipt printers.',
+    check:    item => !!item.short_desc && item.short_desc.length > 12,
   },
   {
-    ruleCode:             'DUPLICATE_UPC',
-    issueType:            'data_integrity',
-    description:          'Barcode is shared by more than one PLU item. POS will ring the wrong item.',
-    defaultConfidence:    1.0,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'MISSING_PRICE',
+    severity: 'error',
+    message:  'Item has no retail price. It cannot be sold at the register.',
+    check:    item => item.unit_price === undefined || item.unit_price === null || item.unit_price <= 0,
   },
   {
-    ruleCode:             'DUPLICATE_DESC',
-    issueType:            'data_integrity',
-    description:          'Description is identical to another item. Duplicate names cause reporting confusion.',
-    defaultConfidence:    0.90,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'NEGATIVE_MARGIN',
+    severity: 'error',
+    message:  'Retail price is below cost. Item is selling at a loss.',
+    check:    item => (item.cost ?? 0) > 0 && item.cost! > item.unit_price,
   },
   {
-    ruleCode:             'MISSING_UPC',
-    issueType:            'missing_data',
-    description:          'Item has no scan code. Cashiers cannot scan this item at the register.',
-    defaultConfidence:    0.95,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'MISSING_DEPT',
+    severity: 'warning',
+    message:  'Item is not assigned to any department. Sales reporting will be incomplete.',
+    check:    item => !item.dept_name || item.dept_name.trim() === '',
   },
   {
-    ruleCode:             'BAD_UPC_LENGTH',
-    issueType:            'formatting',
-    description:          'Barcode digit count is non-standard (not 8, 12, 13, or 14 digits).',
-    defaultConfidence:    0.90,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'MISSING_CATEGORY',
+    severity: 'warning',
+    message:  'Item has no category. Category-level reports will be inaccurate.',
+    check:    item => !item.category_name || item.category_name.trim() === '',
   },
   {
-    ruleCode:             'MISSING_DEPT',
-    issueType:            'missing_data',
-    description:          'Item is not assigned to any department. Sales reporting will be incomplete.',
-    defaultConfidence:    1.0,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'MISSING_UPC',
+    severity: 'warning',
+    message:  'Item has no scan code. Cashiers cannot scan this item at the register.',
+    check:    item => !item.upc_code,
   },
   {
-    ruleCode:             'MISSING_CATEGORY',
-    issueType:            'missing_data',
-    description:          'Item has no category. Category-level reports will be inaccurate.',
-    defaultConfidence:    0.90,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'INVALID_UPC',
+    severity: 'error',
+    message:  'Barcode is non-standard: not all-digits or fewer than 8 digits.',
+    check:    item => {
+      if (!item.upc_code) return false; // optional — MISSING_UPC covers absence
+      const digitsOnly = /^\d+$/.test(item.upc_code);
+      return !digitsOnly || item.upc_code.length < 8;
+    },
   },
   {
-    ruleCode:             'MISSING_PRODUCT_CODE',
-    issueType:            'missing_data',
-    description:          'Item has no vendor or product code. Ordering and invoice matching may be affected.',
-    defaultConfidence:    0.70,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'MISSING_COST',
+    severity: 'info',
+    message:  'Item has no cost on file. Margin calculations will be unavailable.',
+    check:    item => item.cost === null || item.cost === undefined,
   },
   {
-    ruleCode:             'INCONSISTENT_UOM',
-    issueType:            'formatting',
-    description:          'Unit of measure is not uppercase (e.g. "ea" should be "EA").',
-    defaultConfidence:    0.95,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'HIGH_TAX_RATE',
+    severity: 'info',
+    message:  'Tax rate looks unusually high — verify this is intentional.',
+    check:    item => (item.tax_rate ?? 0) > 15,
   },
   {
-    ruleCode:             'WRONG_TAX_TOBACCO',
-    issueType:            'compliance',
-    description:          'Tobacco item is not flagged as taxable. Verify for your jurisdiction.',
-    defaultConfidence:    0.85,
-    requiresManualReview: true,
-    enabled:              true,
+    code:     'LONG_DESCRIPTION',
+    severity: 'warning',
+    message:  'Description is unusually long and may not display well on receipts.',
+    check:    item => (item.description ?? '').length > 40,
   },
   {
-    ruleCode:             'WRONG_AGE_TOBACCO',
-    issueType:            'compliance',
-    description:          'Tobacco/nicotine item is missing the age-restriction flag. Required by law.',
-    defaultConfidence:    0.98,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'INACTIVE_ITEM',
+    severity: 'info',
+    message:  'Item is marked inactive.',
+    check:    item => item.active === false,
   },
   {
-    ruleCode:             'WRONG_AGE_ALCOHOL',
-    issueType:            'compliance',
-    description:          'Alcohol item is missing the age-restriction flag. Required by law.',
-    defaultConfidence:    0.98,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'ZERO_PRICE_WITH_COST',
+    severity: 'warning',
+    message:  'Item has cost data on file but no retail price set.',
+    check:    item => item.unit_price === 0 && (item.cost ?? 0) > 0,
   },
   {
-    ruleCode:             'WRONG_DEPT_ENERGY',
-    issueType:            'classification',
-    description:          'Energy drink appears to be in a generic grocery department. Reclassify to Packaged Beverages.',
-    defaultConfidence:    0.80,
-    requiresManualReview: true,
-    enabled:              true,
-  },
-  {
-    ruleCode:             'NO_COST',
-    issueType:            'missing_data',
-    description:          'Item has no cost on file. Margin calculations and pricing recommendations unavailable.',
-    defaultConfidence:    0.90,
-    requiresManualReview: true,
-    enabled:              true,
-  },
-  {
-    ruleCode:             'NO_PRICE',
-    issueType:            'missing_data',
-    description:          'Item has no retail price. It cannot be sold at the register.',
-    defaultConfidence:    1.0,
-    requiresManualReview: true,
-    enabled:              true,
-  },
-  {
-    ruleCode:             'PRICE_BELOW_COST',
-    issueType:            'pricing',
-    description:          'Retail price is below cost. Item is selling at a loss.',
-    defaultConfidence:    0.99,
-    requiresManualReview: true,
-    enabled:              true,
-  },
-  {
-    ruleCode:             'INCONSISTENT_PACK_WORDING',
-    issueType:            'formatting',
-    description:          'Pack size wording is inconsistent with department conventions (e.g. "6pk" vs "6PK").',
-    defaultConfidence:    0.75,
-    requiresManualReview: false,
-    enabled:              true,
+    code:     'ROUND_DOLLAR_PRICE',
+    severity: 'info',
+    message:  'Price is an exact whole dollar amount — verify a price-ending strategy wasn\'t skipped.',
+    check:    item => item.unit_price > 0 && Number.isInteger(item.unit_price),
   },
 ];
 
 /** Quick lookup by rule code */
-export const RULES_BY_CODE: Record<RuleCode, NormalizationRule> = Object.fromEntries(
-  NORMALIZATION_RULES.map(r => [r.ruleCode, r])
-) as Record<RuleCode, NormalizationRule>;
+export const RULES_BY_CODE: Record<string, NormalizationRule> = Object.fromEntries(
+  NORMALIZATION_RULES.map(r => [r.code, r])
+);
 
-/** All enabled rule codes */
-export const ENABLED_RULES: NormalizationRule[] = NORMALIZATION_RULES.filter(r => r.enabled);
+/** Codes of every rule the engine runs */
+export const ENABLED_RULES: string[] = NORMALIZATION_RULES.map(r => r.code);

@@ -18,12 +18,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@renderer/*": ["app/renderer/*"],
       "@backend/*": ["backend/*"],
       "@database/*": ["database/*"],
       "@integrations/*": ["integrations/*"],
       "@audit/*": ["audit/*"]
     }
   },
-  "include": ["src/**/*", "app/renderer/**/*", "app/preload/**/*"]
+  "include": ["src/**/*", "app/preload/**/*"]
 }

@@ -3,26 +3,30 @@ import PageHeader from '../components/common/PageHeader';
 import DataTable from '../components/common/DataTable';
 import EmptyState from '../components/common/EmptyState';
 import { ReportService } from '../modules/reports/report.service';
-import { REPORT_DEFINITIONS, REPORT_DEF_MAP } from '../modules/reports/report-definitions';
+import { REPORT_DEFINITIONS, REPORT_DEF_MAP, type ReportType } from '../modules/reports/report-definitions';
 import { exportToCsv, printReport } from '../modules/reports/report-export.service';
-import { fmtDate, daysAgoIso, todayIso } from '../lib/date';
+import { daysAgoIso, todayIso } from '../lib/date';
 
 export default function ReportsPage() {
-  const [selectedId, setSelectedId] = useState(REPORT_DEFINITIONS[0].id);
-  const [dateFrom,   setDateFrom]   = useState(daysAgoIso(30));
-  const [dateTo,     setDateTo]     = useState(todayIso());
-  const [rows,       setRows]       = useState<Record<string, unknown>[]>([]);
-  const [running,    setRunning]    = useState(false);
-  const [ran,        setRan]        = useState(false);
+  const [selectedType, setSelectedType] = useState<ReportType>(REPORT_DEFINITIONS[0].id);
+  const [dateFrom,      setDateFrom]     = useState(daysAgoIso(30));
+  const [dateTo,        setDateTo]       = useState(todayIso());
+  const [rows,          setRows]         = useState<Record<string, unknown>[]>([]);
+  const [running,       setRunning]      = useState(false);
+  const [ran,           setRan]          = useState(false);
 
-  const def = REPORT_DEF_MAP[selectedId];
+  const def = REPORT_DEF_MAP[selectedType];
 
   async function runReport() {
     setRunning(true);
     setRan(false);
     try {
-      const result = await ReportService.generate(selectedId, { date_from: dateFrom, date_to: dateTo });
-      setRows(result as Record<string, unknown>[]);
+      const result = await ReportService.generate({
+        reportType: selectedType,
+        startDate:  dateFrom,
+        endDate:    dateTo,
+      });
+      setRows((result.data as Record<string, unknown>[]) ?? []);
       setRan(true);
     } finally {
       setRunning(false);
@@ -40,8 +44,8 @@ export default function ReportsPage() {
             <label className="block text-xs font-medium text-gray-700 mb-1">Report Type</label>
             <select
               className="input w-full"
-              value={selectedId}
-              onChange={e => { setSelectedId(e.target.value); setRan(false); }}
+              value={selectedType}
+              onChange={e => { setSelectedType(e.target.value as ReportType); setRan(false); }}
             >
               {REPORT_DEFINITIONS.map(d => (
                 <option key={d.id} value={d.id}>{d.name}</option>
@@ -75,10 +79,10 @@ export default function ReportsPage() {
 
           {ran && rows.length > 0 && (
             <>
-              <button className="btn-secondary" onClick={() => exportToCsv(def.columns, rows, def.id)}>
+              <button className="btn-secondary" onClick={() => exportToCsv(rows, def)}>
                 Export CSV
               </button>
-              <button className="btn-secondary" onClick={() => printReport(def.name, def.columns, rows)}>
+              <button className="btn-secondary" onClick={() => printReport()}>
                 Print
               </button>
             </>

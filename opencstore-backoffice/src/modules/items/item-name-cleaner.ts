@@ -27,18 +27,15 @@ const NOISE_WORDS = [
  * Produce a cleaner version of a raw item description.
  * Rules:
  *   1. Trim whitespace
- *   2. Collapse multiple spaces
- *   3. Convert to UPPER CASE (standard c-store receipt convention)
- *   4. Normalise size tokens: "20oz" → "20OZ", "12PK" stays "12PK"
- *   5. Remove trailing punctuation
+ *   2. Convert to UPPER CASE (standard c-store receipt convention)
+ *   3. Strip special characters, keeping only letters, digits, and spaces
+ *   4. Collapse multiple spaces
  */
 export function cleanDescription(raw: string | null | undefined): string {
   if (!raw) return '';
-  let s = raw.trim().replace(/\s+/g, ' ');
-  // Upper-case the whole string (common receipt standard)
-  s = s.toUpperCase();
-  // Remove trailing punctuation
-  s = s.replace(/[.,;:]+$/, '');
+  let s = raw.trim().toUpperCase();
+  s = s.replace(/[^A-Z0-9 ]+/g, '');
+  s = s.trim().replace(/\s+/g, ' ');
   return s;
 }
 
@@ -62,26 +59,36 @@ export function suggestShortDesc(description: string, maxLen = 12): string {
   return shortened.slice(0, maxLen).trim();
 }
 
+// Maps recognised unit-of-measure spellings/variants to their canonical form
+const UOM_ALIASES: Record<string, string> = {
+  OZ: 'OZ', OUNCE: 'OZ', OUNCES: 'OZ', 'FL OZ': 'OZ', FLOZ: 'OZ',
+  LB: 'LB', LBS: 'LB', POUND: 'LB', POUNDS: 'LB',
+  EA: 'EA', EACH: 'EA',
+  CT: 'CT', COUNT: 'CT',
+  PK: 'PK', PACK: 'PK',
+  GAL: 'GAL', GALLON: 'GAL', GALLONS: 'GAL',
+  LTR: 'LTR', LITER: 'LTR', LITERS: 'LTR', L: 'LTR',
+  ML: 'ML',
+};
+
 /**
- * Normalise a unit-of-measure string: ensure uppercase.
- * "ea" → "EA", "pk" → "PK", etc.
+ * Normalise a unit-of-measure string to its canonical abbreviation.
+ * Unknown or blank input falls back to "EA" (each).
  */
 export function normaliseUom(raw: string | null | undefined): string {
   if (!raw) return 'EA';
-  const s = raw.trim().toUpperCase();
-  return s || 'EA';
+  const key = raw.trim().toUpperCase().replace(/\.$/, '');
+  return UOM_ALIASES[key] ?? 'EA';
 }
 
 /**
- * Normalise a pack-size token to the convention "NNxx":
- *   "6pk" → "6PK", "12 pk" → "12PK", "24CT" stays "24CT"
+ * Extract the pack size (e.g. the "6" in "COKE 6PK 12OZ") from an item
+ * description. Defaults to 1 (single unit) when no pack count is found.
  */
-export function normalisePackSize(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const match = raw.trim().match(/^(\d+)\s*([a-zA-Z]+)$/);
-  if (!match) return raw.trim().toUpperCase();
-  const [, num, unit] = match;
-  return `${num}${unit.toUpperCase()}`;
+export function normalisePackSize(description: string | null | undefined): number {
+  if (!description) return 1;
+  const match = description.match(/(\d+)\s*(?:PK|PACK|CT|COUNT)\b/i);
+  return match ? parseInt(match[1], 10) : 1;
 }
 
 /**

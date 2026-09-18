@@ -95,12 +95,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 declare global {
   interface Window {
     electronAPI: {
-      getState:              () => Promise<{ onboardingComplete: boolean; currentUser: unknown }>;
+      getState:              () => Promise<{ onboardingComplete: boolean; activeUserId: string | null; activeStoreId: string | null; version: string }>;
       getCurrentUser:        () => Promise<unknown>;
       getOnboardingState:    () => Promise<{ completed: boolean }>;
       login:                 (u: string, p: string) => Promise<{ ok: boolean; user?: unknown; error?: string }>;
       logout:                () => Promise<void>;
-      completeOnboarding:    (payload: unknown) => Promise<void>;
+      completeOnboarding:    (payload: unknown) => Promise<{ success: boolean; storeId: string; userId: string }>;
       getDashboardMetrics:   () => Promise<unknown>;
       getDashboardSummary:   () => Promise<unknown>;
       getRecentAuditItems:   () => Promise<unknown[]>;
@@ -123,13 +123,13 @@ declare global {
       approvePriceRec:       (recId: string, notes?: string) => Promise<void>;
       rejectPriceRec:        (recId: string, notes?: string) => Promise<void>;
       exportApprovedPrices:  () => Promise<unknown>;
-      generateReport:        (params: unknown) => Promise<unknown[]>;
+      generateReport:        (params: unknown) => Promise<{ id: string; data: unknown }>;
       getReportArchive:      () => Promise<unknown[]>;
       getReportById:         (id: string) => Promise<unknown>;
       getShifts:             () => Promise<unknown[]>;
-      openShift:             () => Promise<unknown>;
+      openShift:             () => Promise<{ id: string; status: string; opened_at: string }>;
       closeShift:            (shiftId: string) => Promise<void>;
-      startChecklist:        (templateId: string) => Promise<unknown>;
+      startChecklist:        (templateId: string) => Promise<{ id: string; templateId: string; steps: { key: string; label: string }[] }>;
       getChecklists:         () => Promise<unknown[]>;
       createChecklist:       (payload: unknown) => Promise<unknown>;
       getChecklist:          (id: string) => Promise<unknown>;

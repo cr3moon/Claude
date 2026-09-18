@@ -28,8 +28,8 @@ import type {
   ValidationResult,
   ApplyResult,
 } from './types';
-import { XmlPluParser } from '../../integrations/parsers/XmlPluParser';
-import { CsvPluParser } from '../../integrations/parsers/CsvPluParser';
+import { XmlPluParser } from '../../../integrations/parsers/XmlPluParser';
+import { CsvPluParser } from '../../../integrations/parsers/CsvPluParser';
 
 export class FileImportAdapter implements IPosAdapter {
   readonly adapterType: AdapterType = 'file_import';
@@ -143,10 +143,12 @@ export class FileImportAdapter implements IPosAdapter {
         severity:  'warning' as const,
       }));
 
+    const errors: typeof warnings = [];
+
     return {
-      valid:        warnings.filter(w => w.severity === 'error').length === 0,
+      valid:        errors.length === 0,
       warnings,
-      errors:       [],
+      errors,
       dryRunReport: `Validated ${changeSet.changes.length} change(s). ${warnings.length} warning(s).`,
     };
   }

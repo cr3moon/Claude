@@ -179,6 +179,7 @@ export interface RawPluItem {
   tax_flag: boolean;
   age_restricted: boolean;
   foodstamp_eligible: boolean;
+  is_fuel?: boolean;
   unit_descriptor?: string;
   pack_size?: number;
   cost?: number;

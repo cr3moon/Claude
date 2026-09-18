@@ -7,12 +7,15 @@ type Step = 'welcome' | 'store' | 'admin' | 'adapter' | 'done';
 const STEPS: Step[] = ['welcome', 'store', 'admin', 'adapter', 'done'];
 
 interface StoreForm {
-  name:        string;
-  address:     string;
-  city:        string;
-  state:       string;
-  postal_code: string;
-  phone:       string;
+  name:           string;
+  address:        string;
+  city:           string;
+  state:          string;
+  zip:            string;
+  phone:          string;
+  timezone:       string;
+  tax_rate:       number;
+  fuel_tax_rate:  number;
 }
 
 interface AdminForm {
@@ -35,7 +38,9 @@ export default function OnboardingPage() {
   const [error,   setError]   = useState('');
 
   const [store,   setStore]   = useState<StoreForm>({
-    name: '', address: '', city: '', state: '', postal_code: '', phone: '',
+    name: '', address: '', city: '', state: '', zip: '', phone: '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    tax_rate: 0, fuel_tax_rate: 0,
   });
   const [admin,   setAdmin]   = useState<AdminForm>({
     display_name: '', username: '', password: '', confirm: '',
@@ -53,7 +58,7 @@ export default function OnboardingPage() {
     setBusy(true);
     try {
       await OnboardingService.complete({
-        store:   { ...store, adapter_type: adapter },
+        store:   { ...store, pos_type: adapter },
         admin:   { display_name: admin.display_name, username: admin.username, password: admin.password },
       });
       setStep('done');
@@ -108,7 +113,7 @@ export default function OnboardingPage() {
           {step === 'store' && (
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-gray-900">Store Information</h2>
-              {(['name', 'address', 'city', 'state', 'postal_code', 'phone'] as const).map(field => (
+              {(['name', 'address', 'city', 'state', 'zip', 'phone', 'timezone'] as const).map(field => (
                 <div key={field}>
                   <label className="block text-xs font-medium text-gray-700 mb-1 capitalize">
                     {field.replace('_', ' ')}
@@ -121,6 +126,26 @@ export default function OnboardingPage() {
                   />
                 </div>
               ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Sales Tax Rate (%)</label>
+                  <input
+                    type="number" step="0.01" min="0"
+                    className="input w-full"
+                    value={store.tax_rate}
+                    onChange={e => setStore(s => ({ ...s, tax_rate: Number(e.target.value) }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Fuel Tax Rate (%)</label>
+                  <input
+                    type="number" step="0.01" min="0"
+                    className="input w-full"
+                    value={store.fuel_tax_rate}
+                    onChange={e => setStore(s => ({ ...s, fuel_tax_rate: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
             </div>
           )}
 

@@ -9,24 +9,26 @@
 export type ReportType =
   | 'daily_shift'
   | 'eod_close'
-  | 'sales_by_dept'
+  | 'sales_by_department'
   | 'sales_by_category'
-  | 'sales_by_item'
+  | 'top_items_by_revenue'
   | 'tender_summary'
   | 'tax_summary'
   | 'voids_refunds'
   | 'cashier_performance'
   | 'margin_report'
   | 'price_change_history'
-  | 'item_compliance'
+  | 'audit_recommendations'
   | 'over_short'
+  | 'low_margin_items'
+  | 'import_job_log'
   | 'weekly_summary'
   | 'monthly_summary'
   | 'yearly_summary';
 
 export interface ReportDefinition {
-  type:           ReportType;
-  label:          string;
+  id:             ReportType;
+  name:           string;
   description:    string;
   supportsShift:  boolean;
   /** Column keys expected in the data rows */
@@ -43,7 +45,7 @@ export interface ReportColumn {
 
 export const REPORT_DEFINITIONS: ReportDefinition[] = [
   {
-    type: 'daily_shift', label: 'Daily Shift Summary', category: 'sales',
+    id: 'daily_shift', name: 'Daily Shift Summary', category: 'sales',
     description: 'Sales totals, tender breakdown, voids, and tax for a single day.',
     supportsShift: true,
     columns: [
@@ -55,7 +57,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'eod_close', label: 'End-of-Day Close', category: 'operations',
+    id: 'eod_close', name: 'End-of-Day Close', category: 'operations',
     description: 'Full day close packet: sales, tenders, cash, over/short.',
     supportsShift: false,
     columns: [
@@ -64,7 +66,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'sales_by_dept', label: 'Sales by Department', category: 'sales',
+    id: 'sales_by_department', name: 'Sales by Department', category: 'sales',
     description: 'Gross sales, discounts, and units sold grouped by department.',
     supportsShift: true,
     columns: [
@@ -76,7 +78,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'sales_by_category', label: 'Sales by Category', category: 'sales',
+    id: 'sales_by_category', name: 'Sales by Category', category: 'sales',
     description: 'Sales breakdown by product category within each department.',
     supportsShift: true,
     columns: [
@@ -87,7 +89,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'sales_by_item', label: 'Sales by Item', category: 'sales',
+    id: 'top_items_by_revenue', name: 'Top Items by Revenue', category: 'sales',
     description: 'Individual item sales with margin data.',
     supportsShift: false,
     columns: [
@@ -101,7 +103,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'tender_summary', label: 'Tender Summary', category: 'sales',
+    id: 'tender_summary', name: 'Tender Summary', category: 'sales',
     description: 'Sales totals broken down by payment type.',
     supportsShift: true,
     columns: [
@@ -112,7 +114,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'tax_summary', label: 'Tax Summary', category: 'sales',
+    id: 'tax_summary', name: 'Tax Summary', category: 'sales',
     description: 'Taxable sales and tax collected by department.',
     supportsShift: false,
     columns: [
@@ -122,7 +124,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'voids_refunds', label: 'Voids & Refunds', category: 'operations',
+    id: 'voids_refunds', name: 'Voids & Refunds', category: 'operations',
     description: 'All void and refund transactions for the period.',
     supportsShift: true,
     columns: [
@@ -134,7 +136,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'cashier_performance', label: 'Cashier Performance', category: 'operations',
+    id: 'cashier_performance', name: 'Cashier Performance', category: 'operations',
     description: 'Sales, voids, refunds, and discounts by cashier.',
     supportsShift: false,
     columns: [
@@ -147,7 +149,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'margin_report', label: 'Margin Report', category: 'pricing',
+    id: 'margin_report', name: 'Margin Report', category: 'pricing',
     description: 'Cost, retail, and gross margin for all active items.',
     supportsShift: false,
     columns: [
@@ -161,7 +163,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'price_change_history', label: 'Price Change History', category: 'pricing',
+    id: 'price_change_history', name: 'Price Change History', category: 'pricing',
     description: 'Record of all price changes with before/after values.',
     supportsShift: false,
     columns: [
@@ -175,16 +177,21 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'item_compliance', label: 'Item Standards Compliance', category: 'compliance',
-    description: 'Summary of data quality issues detected by the item audit engine.',
+    id: 'audit_recommendations', name: 'Audit Recommendations', category: 'compliance',
+    description: 'Item data quality flags generated by the normalization rule engine.',
     supportsShift: false,
     columns: [
-      { key: 'rule_code', label: 'Rule',  format: 'text' },
-      { key: 'cnt',       label: 'Count', format: 'integer', align: 'right' },
+      { key: 'created_at',  label: 'Date',        format: 'datetime' },
+      { key: 'pos_plu_id',  label: 'PLU',         format: 'text' },
+      { key: 'description', label: 'Description', format: 'text' },
+      { key: 'rule_code',   label: 'Rule',        format: 'text' },
+      { key: 'severity',    label: 'Severity',    format: 'text' },
+      { key: 'suggestion',  label: 'Suggestion',  format: 'text' },
+      { key: 'status',      label: 'Status',      format: 'text' },
     ],
   },
   {
-    type: 'over_short', label: 'Over/Short Summary', category: 'operations',
+    id: 'over_short', name: 'Over/Short Summary', category: 'operations',
     description: 'Cash over/short amounts by shift.',
     supportsShift: false,
     columns: [
@@ -196,7 +203,38 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'weekly_summary',  label: 'Weekly Summary',  category: 'sales',
+    id: 'low_margin_items', name: 'Low Margin Items', category: 'pricing',
+    description: 'Items where gross margin falls below the department minimum margin.',
+    supportsShift: false,
+    columns: [
+      { key: 'pos_plu_id',     label: 'PLU',           format: 'text' },
+      { key: 'description',    label: 'Description',   format: 'text' },
+      { key: 'dept_name',      label: 'Dept',           format: 'text' },
+      { key: 'current_price',  label: 'Price',          format: 'currency', align: 'right' },
+      { key: 'current_cost',   label: 'Cost',            format: 'currency', align: 'right' },
+      { key: 'current_margin', label: 'Current Margin', format: 'percent',  align: 'right' },
+      { key: 'target_margin',  label: 'Target Margin',  format: 'percent',  align: 'right' },
+      { key: 'gap',            label: 'Gap',             format: 'percent',  align: 'right' },
+    ],
+  },
+  {
+    id: 'import_job_log', name: 'Import Job Log', category: 'operations',
+    description: 'History of all data import jobs with record counts and status.',
+    supportsShift: false,
+    columns: [
+      { key: 'created_at',      label: 'Date',          format: 'datetime' },
+      { key: 'source_type',     label: 'Source',        format: 'text' },
+      { key: 'adapter_type',    label: 'Adapter',       format: 'text' },
+      { key: 'records_total',   label: 'Total',         format: 'integer', align: 'right' },
+      { key: 'records_ok',      label: 'OK',            format: 'integer', align: 'right' },
+      { key: 'records_skipped', label: 'Skipped',       format: 'integer', align: 'right' },
+      { key: 'records_error',   label: 'Errors',        format: 'integer', align: 'right' },
+      { key: 'status',          label: 'Status',        format: 'text' },
+      { key: 'triggered_by',    label: 'Triggered By',  format: 'text' },
+    ],
+  },
+  {
+    id: 'weekly_summary', name: 'Weekly Summary', category: 'sales',
     description: 'Sales totals rolled up by week.',
     supportsShift: false,
     columns: [
@@ -206,7 +244,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'monthly_summary', label: 'Monthly Summary', category: 'sales',
+    id: 'monthly_summary', name: 'Monthly Summary', category: 'sales',
     description: 'Sales totals rolled up by calendar month.',
     supportsShift: false,
     columns: [
@@ -216,7 +254,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
-    type: 'yearly_summary',  label: 'Yearly Summary',  category: 'sales',
+    id: 'yearly_summary', name: 'Yearly Summary', category: 'sales',
     description: 'Sales totals rolled up by calendar year.',
     supportsShift: false,
     columns: [
@@ -228,5 +266,5 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
 ];
 
 export const REPORT_DEF_MAP: Record<ReportType, ReportDefinition> = Object.fromEntries(
-  REPORT_DEFINITIONS.map(d => [d.type, d])
+  REPORT_DEFINITIONS.map(d => [d.id, d])
 ) as Record<ReportType, ReportDefinition>;

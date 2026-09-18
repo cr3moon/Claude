@@ -3,21 +3,10 @@ import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
 import ConfirmDialog from '../components/common/ConfirmDialog';
-import { ItemAuditService } from '../modules/items/item-audit.service';
-
-interface AuditRec {
-  id:          string;
-  pos_plu_id:  string;
-  description: string;
-  rule_code:   string;
-  severity:    string;
-  suggestion:  string | null;
-  status:      string;
-  created_at:  string;
-}
+import { ItemAuditService, type ItemRecommendation } from '../modules/items/item-audit.service';
 
 export default function ItemAuditPage() {
-  const [items,   setItems]   = useState<AuditRec[]>([]);
+  const [items,   setItems]   = useState<ItemRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [confirm, setConfirm] = useState<{ action: 'approve' | 'reject'; id: string } | null>(null);
@@ -26,7 +15,7 @@ export default function ItemAuditPage() {
     setLoading(true);
     try {
       const data = await ItemAuditService.getPending();
-      setItems(data as AuditRec[]);
+      setItems(data);
     } finally {
       setLoading(false);
     }
@@ -102,11 +91,11 @@ export default function ItemAuditPage() {
                   <td><code className="text-xs">{item.rule_code}</code></td>
                   <td>
                     <StatusBadge
-                      label={item.severity}
-                      status={item.severity === 'error' ? 'error' : item.severity === 'warning' ? 'warning' : 'ok'}
+                      label={item.requires_manual_review ? 'error' : 'warning'}
+                      status={item.requires_manual_review ? 'error' : 'warning'}
                     />
                   </td>
-                  <td className="text-xs text-gray-500 max-w-[180px] truncate">{item.suggestion ?? '—'}</td>
+                  <td className="text-xs text-gray-500 max-w-[180px] truncate">{item.reason}</td>
                   <td><StatusBadge label={item.status} status={item.status} /></td>
                   <td className="text-right">
                     {item.status === 'pending' && (

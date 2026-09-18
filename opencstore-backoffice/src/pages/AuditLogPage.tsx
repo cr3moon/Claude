@@ -2,18 +2,8 @@ import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import EmptyState from '../components/common/EmptyState';
 import StatusBadge from '../components/common/StatusBadge';
-import { AuditService } from '../modules/audit/audit.service';
+import { AuditService, type AuditEntry } from '../modules/audit/audit.service';
 import { fmtDateTime } from '../lib/date';
-
-interface AuditEntry {
-  id:          string;
-  action:      string;
-  entity_type: string;
-  entity_id:   string | null;
-  user_name:   string | null;
-  detail:      string | null;
-  created_at:  string;
-}
 
 export default function AuditLogPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
@@ -25,7 +15,7 @@ export default function AuditLogPage() {
       setLoading(true);
       try {
         const data = await AuditService.getRecent(limit);
-        setEntries(data as AuditEntry[]);
+        setEntries(data);
       } finally {
         setLoading(false);
       }
@@ -69,29 +59,32 @@ export default function AuditLogPage() {
               </tr>
             </thead>
             <tbody>
-              {entries.map(entry => (
-                <tr key={entry.id}>
-                  <td className="whitespace-nowrap font-mono">{fmtDateTime(entry.created_at)}</td>
-                  <td>
-                    <StatusBadge
-                      label={entry.action}
-                      variant={
-                        entry.action.includes('delete') ? 'red' :
-                        entry.action.includes('create') ? 'green' :
-                        entry.action.includes('update') ? 'blue' : 'gray'
-                      }
-                    />
-                  </td>
-                  <td>
-                    <span className="font-medium">{entry.entity_type}</span>
-                    {entry.entity_id && (
-                      <span className="text-gray-400 ml-1 font-mono">#{entry.entity_id.slice(0, 8)}</span>
-                    )}
-                  </td>
-                  <td className="text-gray-500">{entry.user_name ?? '—'}</td>
-                  <td className="text-gray-500 max-w-xs truncate">{entry.detail ?? '—'}</td>
-                </tr>
-              ))}
+              {entries.map(entry => {
+                const action = entry.event_subtype ?? entry.event_type;
+                return (
+                  <tr key={entry.id}>
+                    <td className="whitespace-nowrap font-mono">{fmtDateTime(entry.created_at)}</td>
+                    <td>
+                      <StatusBadge
+                        label={action}
+                        variant={
+                          action.includes('reject') || entry.result === 'failure' ? 'red' :
+                          action.includes('approve') || action.includes('complete') ? 'green' :
+                          action.includes('update') ? 'blue' : 'gray'
+                        }
+                      />
+                    </td>
+                    <td>
+                      <span className="font-medium">{entry.entity_type ?? entry.event_type}</span>
+                      {entry.entity_id && (
+                        <span className="text-gray-400 ml-1 font-mono">#{entry.entity_id.slice(0, 8)}</span>
+                      )}
+                    </td>
+                    <td className="text-gray-500">{entry.user_name ?? '—'}</td>
+                    <td className="text-gray-500 max-w-xs truncate">{entry.error_detail ?? entry.description}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

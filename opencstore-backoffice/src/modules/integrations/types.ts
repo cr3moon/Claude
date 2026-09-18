@@ -35,7 +35,7 @@ export type ImportFormat =
   | 'csv_pricebook'
   | 'csv_transactions'
   | 'csv_departments'
-  | 'json_export';
+  | 'api_json';
 
 // ─── Connection ───────────────────────────────────────────────────────────────
 
