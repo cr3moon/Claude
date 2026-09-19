@@ -113,10 +113,12 @@ Backups are stored in the `backups/` subdirectory of the same folder.
 opencstore-backoffice/
 ├── app/
 │   ├── main/           Electron main process + IPC handlers
-│   ├── preload/        Context bridge (secure renderer↔main bridge)
-│   └── renderer/       React + TypeScript frontend
-│       ├── components/ Page components (Dashboard, Onboarding, etc.)
-│       └── styles/     Tailwind CSS
+│   └── preload/        Context bridge (secure renderer↔main bridge)
+├── src/                React + TypeScript frontend (Vite renderer)
+│   ├── pages/           Page components (Dashboard, Onboarding, etc.)
+│   ├── components/      Shared UI components
+│   ├── modules/         Renderer-side service facades
+│   └── styles/          Tailwind CSS
 ├── backend/
 │   └── services/       DatabaseService, ImportService, ItemAuditService,
 │                       PricingService, ReportService

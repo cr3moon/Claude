@@ -27,5 +27,5 @@
     "pricing/**/*",
     "audit/**/*"
   ],
-  "exclude": ["node_modules", "dist", "dist-electron", "app/renderer"]
+  "exclude": ["node_modules", "dist", "dist-electron"]
 }

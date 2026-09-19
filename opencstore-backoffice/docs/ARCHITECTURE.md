@@ -156,7 +156,7 @@ stores ──── users ──── user_sessions
 | `integrations/parsers/CsvPluParser` | Parse CSV pricebook / PLU files |
 | `app/main/index.ts` | Electron main process, IPC handler registration |
 | `app/preload/index.ts` | Context bridge – exposes electronAPI to renderer |
-| `app/renderer/` | React frontend, all UI components |
+| `src/` | React frontend, all UI components |
 
 ## User Roles
 
