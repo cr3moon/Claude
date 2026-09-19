@@ -2,7 +2,7 @@
   "name": "opencstore-backoffice",
   "version": "0.1.0",
   "description": "OpenCStore Back Office – free local-first back-office tool for independent gas station and convenience store owners",
-  "main": "dist-electron/main/index.js",
+  "main": "dist-electron/app/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:renderer": "vite",
@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "seed": "ts-node --project tsconfig.electron.json database/seeds/seed.ts"
+    "seed": "ts-node --project tsconfig.electron.json database/seeds/seed.ts",
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": ["pos", "c-store", "gas-station", "back-office", "electron", "sqlite"],
   "license": "MIT",
@@ -65,10 +66,12 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "sample-data/**/*"
+      "sample-data/**/*",
+      "database/schema.sql"
     ],
     "extraResources": [
-      { "from": "sample-data", "to": "sample-data" }
+      { "from": "sample-data", "to": "sample-data" },
+      { "from": "database/schema.sql", "to": "database/schema.sql" }
     ],
     "win": {
       "target": "nsis"

@@ -23,9 +23,18 @@ const DB_PATH   = path.join(USER_DATA, 'opencstore.db');
 const BACKUP_DIR = path.join(USER_DATA, 'backups');
 const EXPORT_DIR = path.join(USER_DATA, 'exports');
 
+// Bundled read-only assets (schema, sample data). In a packaged build these
+// ship under extraResources; in dev, this file runs compiled three levels
+// deep at dist-electron/app/main/index.js, so climb back out to the repo root.
+const APP_ROOT = app.isPackaged
+  ? process.resourcesPath
+  : path.join(__dirname, '..', '..', '..');
+const SCHEMA_PATH      = path.join(APP_ROOT, 'database', 'schema.sql');
+const SAMPLE_DATA_DIR  = path.join(APP_ROOT, 'sample-data');
+
 // ─── Services (singleton per process) ────────────────────────────────────────
 
-const dbService   = new DatabaseService(DB_PATH);
+const dbService   = new DatabaseService(DB_PATH, SCHEMA_PATH);
 const auditLogger = new AuditLogger(dbService);
 const importSvc   = new ImportService(dbService, auditLogger);
 const itemAuditSvc = new ItemAuditService(dbService, auditLogger);
@@ -60,7 +69,10 @@ function createWindow(): void {
     mainWindow.loadURL(process.env['VITE_DEV_SERVER_URL']);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
+    // dist/renderer ships inside the packaged app itself (declared in
+    // build.files), not under extraResources like schema.sql/sample-data,
+    // so use app.getAppPath() here rather than APP_ROOT.
+    mainWindow.loadFile(path.join(app.getAppPath(), 'dist/renderer/index.html'));
   }
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -73,6 +85,15 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}).catch(err => {
+  // Without this, a startup failure (missing schema file, locked DB, etc.)
+  // leaves the app running with zero windows and no visible indication why.
+  console.error('Failed to start OpenCStore Back Office:', err);
+  dialog.showErrorBox(
+    'OpenCStore Back Office failed to start',
+    String(err instanceof Error ? err.stack ?? err.message : err)
+  );
+  app.exit(1);
 });
 
 app.on('window-all-closed', () => {
@@ -329,7 +350,7 @@ ipcMain.handle('shifts:close', (_e, { shiftId }: { shiftId: string }) => {
 ipcMain.handle('import:runMockImport', async () => {
   if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
 
-  const adapter = new MockVerifoneAdapter();
+  const adapter = new MockVerifoneAdapter(SAMPLE_DATA_DIR);
   adapter.configure({ adapterType: 'mock', readOnly: true });
 
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -346,7 +367,7 @@ ipcMain.handle('import:runMockImport', async () => {
 ipcMain.handle('import:fromFile', async (_e, { filePath, format }: { filePath: string; format: string }) => {
   if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
 
-  const adapter = new MockVerifoneAdapter();
+  const adapter = new MockVerifoneAdapter(SAMPLE_DATA_DIR);
   adapter.configure({ adapterType: 'file_import', readOnly: true });
 
   fs.mkdirSync(BACKUP_DIR, { recursive: true });

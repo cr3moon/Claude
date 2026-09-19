@@ -13,9 +13,18 @@ import { v4 as uuidv4 } from 'uuid';
 export class DatabaseService {
   private db: Database.Database | null = null;
   private dbPath: string;
+  private schemaPath: string;
 
-  constructor(dbPath: string) {
+  /**
+   * @param schemaPath Absolute path to database/schema.sql. Callers must pass
+   *   this explicitly — the compiled main-process code, ts-node running the
+   *   source directly (database/seeds/seed.ts), and a packaged build each put
+   *   this file at a different depth relative to __dirname, so there is no
+   *   single relative path that works in every context.
+   */
+  constructor(dbPath: string, schemaPath: string) {
     this.dbPath = dbPath;
+    this.schemaPath = schemaPath;
   }
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
@@ -46,11 +55,10 @@ export class DatabaseService {
   // ─── Schema ───────────────────────────────────────────────────────────────
 
   private applySchema(): void {
-    const schemaPath = path.join(__dirname, '..', '..', 'database', 'schema.sql');
-    if (!fs.existsSync(schemaPath)) {
-      throw new Error(`Schema file not found at: ${schemaPath}`);
+    if (!fs.existsSync(this.schemaPath)) {
+      throw new Error(`Schema file not found at: ${this.schemaPath}`);
     }
-    const sql = fs.readFileSync(schemaPath, 'utf-8');
+    const sql = fs.readFileSync(this.schemaPath, 'utf-8');
     this.db!.exec(sql);
   }
 

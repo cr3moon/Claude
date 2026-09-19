@@ -30,7 +30,7 @@ const BACKUP_DIR  = path.join(ROOT, '.dev-backups');
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 
-const dbService   = new DatabaseService(DB_PATH);
+const dbService   = new DatabaseService(DB_PATH, path.join(ROOT, 'database', 'schema.sql'));
 const auditLogger = new AuditLogger(dbService);
 const importSvc   = new ImportService(dbService, auditLogger);
 
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   console.log('    Loading sample PLU data…');
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-  const adapter = new MockVerifoneAdapter();
+  const adapter = new MockVerifoneAdapter(path.join(ROOT, 'sample-data'));
   adapter.configure({ adapterType: 'mock', readOnly: true });
 
   try {

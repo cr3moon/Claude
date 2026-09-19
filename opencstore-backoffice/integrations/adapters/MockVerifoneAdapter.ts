@@ -37,6 +37,20 @@ import { CsvPluParser } from '../parsers/CsvPluParser';
 export class MockVerifoneAdapter implements IPosAdapter {
   readonly adapterType: AdapterType = 'mock';
 
+  private sampleDataDir: string;
+
+  /**
+   * @param sampleDataDir Absolute path to the sample-data/ directory. Like
+   *   DatabaseService's schemaPath, this can't be derived from a fixed
+   *   relative offset from __dirname since callers run this class from
+   *   different depths (compiled main process vs. ts-node against source).
+   *   When omitted, falls back to synthetic in-code sample data (see
+   *   mockDepartments/mockCategories/mockPluItems below).
+   */
+  constructor(sampleDataDir = '') {
+    this.sampleDataDir = sampleDataDir;
+  }
+
   readonly capabilities: AdapterCapabilities = {
     canConnect: true,
     canRead: true,
@@ -250,7 +264,7 @@ export class MockVerifoneAdapter implements IPosAdapter {
   }
 
   private resolveSamplePath(file: string): string {
-    return path.join(__dirname, '..', '..', 'sample-data', file);
+    return this.sampleDataDir ? path.join(this.sampleDataDir, file) : '';
   }
 
   private mockDepartments(): RawDepartment[] {
