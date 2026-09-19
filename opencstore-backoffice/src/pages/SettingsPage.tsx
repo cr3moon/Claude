@@ -2,20 +2,17 @@ import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import { useAuth } from '../modules/auth/AuthContext';
 import { can } from '../modules/auth/roles';
+import { StoreService, type StoreUpdate } from '../modules/settings/store.service';
 
-interface AppSettings {
-  store_name:        string;
-  store_address:     string;
-  default_tax_rate:  string;
-  adapter_type:      string;
-  timezone:          string;
-}
+const EMPTY_FORM: StoreUpdate = {
+  name: '', address: '', city: '', state: '', zip: '', phone: '',
+  timezone: 'UTC', tax_rate: 0, fuel_tax_rate: 0,
+};
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [settings, setSettings] = useState<AppSettings>({
-    store_name: '', store_address: '', default_tax_rate: '0', adapter_type: '', timezone: 'UTC',
-  });
+  const [form,    setForm]    = useState<StoreUpdate>(EMPTY_FORM);
+  const [posType, setPosType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
@@ -25,8 +22,15 @@ export default function SettingsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const s = await window.electronAPI.getSettings();
-        setSettings(prev => ({ ...prev, ...s }));
+        const store = await StoreService.get();
+        if (store) {
+          setForm({
+            name: store.name, address: store.address ?? '', city: store.city ?? '',
+            state: store.state ?? '', zip: store.zip ?? '', phone: store.phone ?? '',
+            timezone: store.timezone, tax_rate: store.tax_rate, fuel_tax_rate: store.fuel_tax_rate,
+          });
+          setPosType(store.pos_type);
+        }
       } finally {
         setLoading(false);
       }
@@ -38,7 +42,7 @@ export default function SettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      await window.electronAPI.saveSettings?.(settings);
+      await StoreService.update(form);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } finally {
@@ -46,19 +50,31 @@ export default function SettingsPage() {
     }
   }
 
-  function field(key: keyof AppSettings, label: string, type: string = 'text') {
+  function textField(key: keyof StoreUpdate, label: string) {
     return (
       <div key={key}>
         <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
         <input
-          type={type}
+          type="text"
           className="input w-full disabled:bg-gray-50 disabled:text-gray-400"
-          value={String(settings[key])}
+          value={String(form[key] ?? '')}
           disabled={!isOwner}
-          onChange={e => setSettings(s => ({
-            ...s,
-            [key]: type === 'number' ? Number(e.target.value) : e.target.value,
-          }))}
+          onChange={e => setForm(s => ({ ...s, [key]: e.target.value }))}
+        />
+      </div>
+    );
+  }
+
+  function numberField(key: 'tax_rate' | 'fuel_tax_rate', label: string) {
+    return (
+      <div key={key}>
+        <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+        <input
+          type="number" step="0.01" min="0"
+          className="input w-full disabled:bg-gray-50 disabled:text-gray-400"
+          value={form[key] ?? 0}
+          disabled={!isOwner}
+          onChange={e => setForm(s => ({ ...s, [key]: Number(e.target.value) }))}
         />
       </div>
     );
@@ -77,17 +93,26 @@ export default function SettingsPage() {
       <PageHeader title="Settings" subtitle={isOwner ? 'Edit store configuration' : 'View-only (owner role required to edit)'} />
 
       <form onSubmit={save} className="card max-w-xl space-y-4">
-        {field('store_name',       'Store Name')}
-        {field('store_address',    'Store Address')}
-        {field('default_tax_rate', 'Default Tax Rate (%)', 'number')}
-        {field('timezone',         'Timezone')}
+        {textField('name',    'Store Name')}
+        {textField('address', 'Store Address')}
+        <div className="grid grid-cols-3 gap-4">
+          {textField('city',  'City')}
+          {textField('state', 'State')}
+          {textField('zip',   'ZIP')}
+        </div>
+        {textField('phone',    'Phone')}
+        {textField('timezone', 'Timezone')}
+        <div className="grid grid-cols-2 gap-4">
+          {numberField('tax_rate',      'Sales Tax Rate (%)')}
+          {numberField('fuel_tax_rate', 'Fuel Tax Rate (%)')}
+        </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">POS Adapter</label>
           <input
             type="text"
             className="input w-full bg-gray-50 text-gray-400"
-            value={settings.adapter_type}
+            value={posType ?? ''}
             disabled
             title="Adapter type is set during onboarding"
           />

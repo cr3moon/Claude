@@ -227,6 +227,34 @@ ipcMain.handle('dashboard:getRecentAuditItems', () => {
 
 ipcMain.handle('store:get', () => dbService.getStore());
 
+ipcMain.handle('store:update', (_e, data: Partial<{
+  name: string; address: string; city: string; state: string; zip: string; phone: string;
+  timezone: string; tax_rate: number; fuel_tax_rate: number; pos_type: string;
+}>) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  const existing = dbService.getStore();
+  if (!existing) return { error: 'Store not found' };
+
+  const storeId = dbService.upsertStore({
+    name:          (data.name ?? existing.name) as string,
+    address:       (data.address ?? existing.address) as string | undefined,
+    city:          (data.city ?? existing.city) as string | undefined,
+    state:         (data.state ?? existing.state) as string | undefined,
+    zip:           (data.zip ?? existing.zip) as string | undefined,
+    phone:         (data.phone ?? existing.phone) as string | undefined,
+    timezone:      (data.timezone ?? existing.timezone) as string,
+    tax_rate:      (data.tax_rate ?? existing.tax_rate) as number,
+    fuel_tax_rate: (data.fuel_tax_rate ?? existing.fuel_tax_rate) as number,
+    pos_type:      (data.pos_type ?? existing.pos_type) as string | undefined,
+  });
+
+  auditLogger.log({ storeId, userId: activeUserId,
+    eventType: 'settings', eventSubtype: 'store_updated',
+    description: `Store settings updated: ${Object.keys(data).join(', ')}` });
+
+  return { success: true };
+});
+
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 ipcMain.handle('settings:get', () => {

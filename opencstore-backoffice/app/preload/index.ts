@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Store ─────────────────────────────────────────────────────────────────
   getStore:              ()                              => invoke('store:get'),
+  updateStore:           (data: unknown)                 => invoke('store:update', data),
 
   // ── Settings ──────────────────────────────────────────────────────────────
   getSettings:           ()                              => invoke('settings:get'),
@@ -104,7 +105,12 @@ declare global {
       getDashboardMetrics:   () => Promise<unknown>;
       getDashboardSummary:   () => Promise<unknown>;
       getRecentAuditItems:   () => Promise<unknown[]>;
-      getStore:              () => Promise<unknown>;
+      getStore:              () => Promise<{
+        id: string; name: string; address: string | null; city: string | null; state: string | null;
+        zip: string | null; phone: string | null; timezone: string; tax_rate: number;
+        fuel_tax_rate: number; currency: string; pos_type: string | null;
+      } | undefined>;
+      updateStore:           (data: unknown) => Promise<{ success: boolean }>;
       getSettings:           () => Promise<Record<string, string>>;
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;
