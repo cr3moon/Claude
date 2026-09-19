@@ -35,6 +35,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getStore:              ()                              => invoke('store:get'),
   updateStore:           (data: unknown)                 => invoke('store:update', data),
 
+  // ── Commander NAXML connection ───────────────────────────────────────────
+  commanderTestConnection: (config: unknown)             => invoke('commander:testConnection', config),
+  commanderGetConnectionSettings: ()                     => invoke('commander:getConnectionSettings'),
+  commanderGetFuelPrices:  ()                             => invoke('commander:getFuelPrices'),
+  commanderGetFuelTotals:  (period: 1 | 2 | 3 | 4)        => invoke('commander:getFuelTotals', period),
+  commanderGetPumpMaintenanceTotals: ()                  => invoke('commander:getPumpMaintenanceTotals'),
+
   // ── Settings ──────────────────────────────────────────────────────────────
   getSettings:           ()                              => invoke('settings:get'),
   saveSettings:          (data: unknown)                 => invoke('settings:save', data),
@@ -111,6 +118,22 @@ declare global {
         fuel_tax_rate: number; currency: string; pos_type: string | null;
       } | undefined>;
       updateStore:           (data: unknown) => Promise<{ success: boolean }>;
+      commanderTestConnection: (config: unknown) => Promise<{ success: boolean; latencyMs?: number; message: string }>;
+      commanderGetConnectionSettings: () => Promise<{
+        host: string; port: number; username_hint: string; connection_status: string; last_tested_at: string | null;
+      } | null>;
+      commanderGetFuelPrices: () => Promise<{ error: string } | Array<{
+        sysid: number; name: string; naxmlFuelGradeId: number | null;
+        inEffectCash: number | null; inEffectCredit: number | null;
+        pendingCash: number | null; pendingCredit: number | null;
+      }>>;
+      commanderGetFuelTotals: (period: 1 | 2 | 3 | 4) => Promise<{ error: string } | Array<{
+        grade: string; volumeGallons: number; revenueUsd: number; avgPrice: number | null;
+      }>>;
+      commanderGetPumpMaintenanceTotals: () => Promise<{ error: string } | Array<{
+        pumpSysid: number; hoseSysid: number; grade: string;
+        totalMoneyUsd: number; totalVolumeGallons: number; totalTransactions: number;
+      }>>;
       getSettings:           () => Promise<Record<string, string>>;
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;

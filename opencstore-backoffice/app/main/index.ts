@@ -15,6 +15,7 @@ import { PricingService } from '../../backend/services/PricingService';
 import { ReportService } from '../../backend/services/ReportService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
+import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,11 @@ const reportSvc   = new ReportService(dbService, auditLogger);
 // Active session state (lightweight, no persistence needed for MVP)
 let activeUserId: string | null = null;
 let activeStoreId: string | null = null;
+
+// Live Commander NAXML connection, if any. Held in memory only — the
+// password is never written to disk (see connection_settings, which stores
+// host/port/username only). Lost on app restart; the operator reconnects.
+let commanderClient: CommanderNaxmlClient | null = null;
 
 // ─── Window ───────────────────────────────────────────────────────────────────
 
@@ -274,6 +280,90 @@ ipcMain.handle('store:update', (_e, data: Partial<{
     description: `Store settings updated: ${Object.keys(data).join(', ')}` });
 
   return { success: true };
+});
+
+// ── Commander NAXML connection ──────────────────────────────────────────────
+//
+// Real connection to a Verifone Commander site controller's NAXML CGI API,
+// per github.com/cr3moon/commander-deconstructed. This is a separate concern
+// from the PLU/pricebook IPosAdapter integrations above — Commander's NAXML
+// API covers fuel pricing and fuel totals, not the inside-store item catalog.
+
+ipcMain.handle('commander:testConnection', async (_e, config: {
+  host: string; port?: number; username: string; password: string;
+}) => {
+  if (!activeUserId || !activeStoreId) return { success: false, message: 'Not authenticated' };
+
+  const client = new CommanderNaxmlClient(config);
+  const result = await client.testConnection();
+
+  const now = new Date().toISOString();
+  const existing = dbService.get<{ id: string }>(
+    "SELECT id FROM connection_settings WHERE store_id=? AND adapter_type='commander'",
+    [activeStoreId]
+  );
+  const values = [
+    config.host, config.port ?? 443, config.username, 1, 1,
+    result.success ? 'ok' : 'failed', now, now, activeStoreId,
+  ];
+  if (existing) {
+    dbService.run(
+      `UPDATE connection_settings SET host=?, port=?, username_hint=?, use_ssl=?, read_only=?,
+       connection_status=?, last_tested_at=?, updated_at=? WHERE store_id=? AND adapter_type='commander'`,
+      values
+    );
+  } else {
+    dbService.run(
+      `INSERT INTO connection_settings(id,store_id,adapter_type,host,port,username_hint,use_ssl,read_only,
+       connection_status,last_tested_at,created_at,updated_at)
+       VALUES(?,?,'commander',?,?,?,?,?,?,?,?,?)`,
+      [uuidv4(), activeStoreId, config.host, config.port ?? 443, config.username, 1, 1,
+       result.success ? 'ok' : 'failed', now, now, now]
+    );
+  }
+
+  commanderClient = result.success ? client : null;
+
+  auditLogger.log({ storeId: activeStoreId, userId: activeUserId,
+    eventType: 'connection', eventSubtype: result.success ? 'commander_connected' : 'commander_connect_failed',
+    description: `Commander connection test to ${config.host}: ${result.message}` });
+
+  return result;
+});
+
+ipcMain.handle('commander:getConnectionSettings', () => {
+  if (!activeStoreId) return null;
+  return dbService.get(
+    "SELECT host, port, username_hint, connection_status, last_tested_at FROM connection_settings WHERE store_id=? AND adapter_type='commander'",
+    [activeStoreId]
+  ) ?? null;
+});
+
+ipcMain.handle('commander:getFuelPrices', async () => {
+  if (!commanderClient) return { error: 'Not connected. Test the connection first.' };
+  try {
+    return await commanderClient.getFuelPrices();
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('commander:getFuelTotals', async (_e, period: 1 | 2 | 3 | 4) => {
+  if (!commanderClient) return { error: 'Not connected. Test the connection first.' };
+  try {
+    return await commanderClient.getFuelTotals(period);
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('commander:getPumpMaintenanceTotals', async () => {
+  if (!commanderClient) return { error: 'Not connected. Test the connection first.' };
+  try {
+    return await commanderClient.getPumpMaintenanceTotals();
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
 });
 
 // ── Settings ─────────────────────────────────────────────────────────────────

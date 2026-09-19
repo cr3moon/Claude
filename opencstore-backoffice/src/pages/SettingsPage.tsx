@@ -3,6 +3,7 @@ import PageHeader from '../components/common/PageHeader';
 import { useAuth } from '../modules/auth/AuthContext';
 import { can } from '../modules/auth/roles';
 import { StoreService, type StoreUpdate } from '../modules/settings/store.service';
+import CommanderConnectionCard from '../components/Settings/CommanderConnectionCard';
 
 const EMPTY_FORM: StoreUpdate = {
   name: '', address: '', city: '', state: '', zip: '', phone: '',
@@ -128,6 +129,10 @@ export default function SettingsPage() {
           </div>
         )}
       </form>
+
+      <div className="mt-6">
+        <CommanderConnectionCard disabled={!isOwner} />
+      </div>
     </>
   );
 }
