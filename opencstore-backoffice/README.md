@@ -37,6 +37,19 @@ npm run dev
 
 This starts the Electron app with the Vite development server.
 
+> **If `npm install` fails compiling `better-sqlite3`** (seen on newer Node versions —
+> e.g. Node 24 — that don't have a prebuilt binary yet): the app only ever needs
+> `better-sqlite3` built for **Electron's** Node ABI, not the one running `npm install`,
+> so the failing build attempt is for a target the app doesn't use. Work around it with:
+> ```bash
+> npm install --ignore-scripts
+> npx electron-builder install-app-deps
+> ```
+> The second command rebuilds `better-sqlite3` against Electron's ABI directly (this
+> also normally runs automatically via the `postinstall` script — but only when
+> `npm install` exits cleanly, which it won't if the first attempt hard-fails on
+> `better-sqlite3` before reaching it).
+
 ### Build Installer
 
 ```bash

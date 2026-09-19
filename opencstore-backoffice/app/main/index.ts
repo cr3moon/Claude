@@ -71,8 +71,12 @@ function createWindow(): void {
     title: 'OpenCStore Back Office',
   });
 
-  if (process.env['VITE_DEV_SERVER_URL']) {
-    mainWindow.loadURL(process.env['VITE_DEV_SERVER_URL']);
+  if (!app.isPackaged) {
+    // npm run dev never sets VITE_DEV_SERVER_URL (setting env vars from an
+    // npm script is shell-dependent — cmd.exe, PowerShell, and bash all
+    // spell it differently), so fall back to the fixed dev port from
+    // vite.config.ts rather than requiring the caller to pass it in.
+    mainWindow.loadURL(process.env['VITE_DEV_SERVER_URL'] ?? 'http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
     // dist/renderer ships inside the packaged app itself (declared in

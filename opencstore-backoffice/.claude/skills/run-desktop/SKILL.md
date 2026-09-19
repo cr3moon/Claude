@@ -87,6 +87,30 @@ npm run dev   # opens a real window with devtools; useless headless
   **zero windows and no visible error** (see below). Fixed by the
   `postinstall: electron-builder install-app-deps` script; if you ever see a
   window-less launch, `npx electron-builder install-app-deps` first.
+- **On a Node version newer than `better-sqlite3`'s available prebuilds (seen
+  on Node 24 on Windows), `npm install` hard-fails** trying to compile it from
+  source, instead of just leaving a wrong-ABI binary. Because it fails, npm
+  never reaches the project's own `postinstall` hook, so the fix above doesn't
+  run automatically. Recover with:
+  ```
+  npm install --ignore-scripts
+  npx electron-builder install-app-deps
+  ```
+  The first command still completes every other package's install (including
+  Electron's own binary download) — it only skips the scripts, and the only
+  one that matters here is better-sqlite3's failing build attempt for the
+  wrong target. The second command does the real rebuild, against Electron's
+  ABI, same as the normal postinstall would have.
+- **The dev launch script never set `VITE_DEV_SERVER_URL`.** `app/main/index.ts`
+  used to decide dev-vs-packaged by checking that env var, but `npm run dev`
+  (`concurrently` running `vite` + `wait-on tcp:5173 && electron .`) never set
+  it — setting an env var from an npm script is shell-dependent (cmd.exe vs.
+  PowerShell vs. bash all spell it differently), so it silently never worked
+  on any shell. The window would try to load the packaged build's path
+  instead, which doesn't exist in dev, and show nothing. Fixed by checking
+  `!app.isPackaged` instead and defaulting to the known dev port
+  (`http://localhost:5173`, matching `vite.config.ts`) rather than requiring
+  the caller to pass the URL in at all.
 - **Any error inside `app.whenReady().then(...)` in `app/main/index.ts`
   used to fail silently** — no `.catch()` meant a startup crash left the
   process running with zero windows and no error dialog. Now caught and
