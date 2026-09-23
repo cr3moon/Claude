@@ -40,6 +40,11 @@ export const ImportService = {
     return window.electronAPI.importFromFile(filePath, format) as Promise<ImportSummary>;
   },
 
+  /** Unlike the other two paths, this one has a real "not connected" precondition — surfaced as `{ error }` rather than thrown. */
+  async importFromCommander(): Promise<ImportSummary | { error: string }> {
+    return window.electronAPI.importFromCommander() as Promise<ImportSummary | { error: string }>;
+  },
+
   async getHistory(): Promise<ImportJobRecord[]> {
     return window.electronAPI.getImportHistory() as Promise<ImportJobRecord[]>;
   },

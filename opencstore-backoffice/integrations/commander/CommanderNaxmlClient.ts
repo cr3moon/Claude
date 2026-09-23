@@ -7,11 +7,14 @@
  * Verifone SDK or proprietary documentation).
  *
  * This talks to a real Commander site controller over HTTPS with a
- * self-signed certificate. It is NOT the same thing as the PLU/pricebook
- * IPosAdapter interface elsewhere in this codebase — Commander's NAXML API
- * (per the reference above) covers fuel pricing and fuel totals, not the
- * inside-store item catalog. PLU import for Commander sites still goes
- * through the File Import adapter.
+ * self-signed certificate. It is distinct from (but now also feeds) the
+ * PLU/pricebook IPosAdapter interface elsewhere in this codebase — the
+ * verified fuel pricing/totals commands are this reference's own; the live
+ * PLU catalog read (`vPLUs`, via getPluPage/getFullPluCatalog below) and
+ * the Ruby report family are second-hand additions — see their own method
+ * docs and docs/commander-ruby-reports.md for what's unverified against
+ * this store's own unit. File Import remains available as a fallback for
+ * Commander sites regardless.
  *
  * Session handling follows the reference's documented model: log in on
  * demand rather than holding a persistent session, treat the token as
@@ -35,6 +38,7 @@ import {
   type CommanderReportPeriod, type RubyReportName,
   type RubyTaxReport, type RubySummaryReport, type RubyDepartmentReport, type RubyNetworkReport,
 } from './ruby-report-parser';
+import { buildPluSelectXml, parsePluSelectResponse, type CommanderPluRecord, type PluPage } from './plu-parser';
 
 export interface CommanderConfig {
   host: string;
@@ -87,6 +91,8 @@ export type {
   CommanderReportPeriod, RubyReportName,
   RubyTaxReport, RubySummaryReport, RubyDepartmentReport, RubyNetworkReport,
 } from './ruby-report-parser';
+
+export type { CommanderPluRecord, PluPage } from './plu-parser';
 
 /** A price change staged for a single grade. Written to Tier 2 (Pending) only. */
 export interface StagedGradePrice {
@@ -383,6 +389,50 @@ export class CommanderNaxmlClient {
       }
     }
     return out;
+  }
+
+  // ─── Live PLU catalog (read) — see plu-parser.ts's doc comment ─────────
+  //
+  // Uses the same POST /cgi-bin/NAXML lane as the verified fuel commands
+  // above (per the sibling reference, `vPLUs` goes through NAXML, not
+  // CGILink like the Ruby report family below). Second-hand/unverified
+  // against this store's own unit — see plu-parser.ts.
+
+  /** One page of the live PLU catalog. `pageSize` is capped by Commander itself (observed ≤200 in the reference). */
+  async getPluPage(pageSize: number, page: number): Promise<PluPage> {
+    const xmlBody = buildPluSelectXml({ pageSize, page });
+    const xml = await this.naxml('vPLUs', {}, xmlBody);
+    return parsePluSelectResponse(xml);
+  }
+
+  /** A single PLU by UPC (+ optional modifier, default "0"), or null if not found. */
+  async getPluByUpc(upc: string, modifier = '0'): Promise<CommanderPluRecord | null> {
+    const xmlBody = buildPluSelectXml({ upc, modifier, pageSize: 1, page: 1 });
+    const xml = await this.naxml('vPLUs', {}, xmlBody);
+    return parsePluSelectResponse(xml).plus[0] ?? null;
+  }
+
+  /**
+   * Pages through the entire catalog. `pageSize` defaults to 200 (a single
+   * large page where the unit allows it, per the reference's documented
+   * bulk-fetch approach); `maxPages` bounds worst-case runtime against a
+   * misbehaving unit that never reports `ofPages` correctly.
+   */
+  async getFullPluCatalog(opts: { pageSize?: number; maxPages?: number } = {}): Promise<CommanderPluRecord[]> {
+    const pageSize = opts.pageSize ?? 200;
+    const maxPages = opts.maxPages ?? 500;
+    const all: CommanderPluRecord[] = [];
+
+    let page = 1;
+    let ofPages = 1;
+    do {
+      const result = await this.getPluPage(pageSize, page);
+      all.push(...result.plus);
+      ofPages = result.ofPages;
+      page += 1;
+    } while (page <= ofPages && page <= maxPages);
+
+    return all;
   }
 
   // ─── Ruby period reports (read) — see docs/commander-ruby-reports.md ───

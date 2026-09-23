@@ -51,6 +51,9 @@ export interface RubySummaryReport {
 export interface RubyDepartmentLine {
   name: string;
   netSales: number;
+  /** Commander's own department sysid, when present on `vs:deptBase` — the
+   *  same sysid `vPLUs`' `department` field carries (see plu-parser.ts). */
+  sysid: string | null;
 }
 
 export interface RubyDepartmentReport {
@@ -184,9 +187,11 @@ export function parseRubyDepartment(xml: string): RubyDepartmentReport {
   const departments: RubyDepartmentLine[] = deptInfos
     .map((d) => {
       const base = findAllNamespaced(d, 'deptBase')[0] as Record<string, unknown> | undefined;
+      const sysid = base?.['@_sysid'] ?? base?.['sysid'];
       return {
         name: String(base?.['@_name'] ?? base?.['name'] ?? '').trim(),
         netSales: Number(unwrapValue(d['netSales']) ?? 0),
+        sysid: sysid !== undefined && sysid !== null ? String(sysid) : null,
       };
     })
     .filter((d) => d.name);

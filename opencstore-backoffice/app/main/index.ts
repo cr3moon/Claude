@@ -23,6 +23,7 @@ import { DailySalesService } from '../../backend/services/DailySalesService';
 import { FuelSnapshotService } from '../../backend/services/FuelSnapshotService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
+import { CommanderPluAdapter } from '../../integrations/commander/CommanderPluAdapter';
 import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
@@ -749,6 +750,22 @@ ipcMain.handle('import:fromFile', async (_e, { filePath, format }: { filePath: s
     adapter,
     sourceFile: filePath,
     format: format as 'xml_plu' | 'csv_pricebook',
+    backupDir: BACKUP_DIR,
+  });
+});
+
+ipcMain.handle('import:fromCommander', async () => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  if (!commanderClient) return { error: 'Not connected to Commander. Test the connection first.' };
+
+  const adapter = new CommanderPluAdapter(commanderClient);
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+  return importSvc.runImport({
+    storeId: activeStoreId,
+    userId: activeUserId,
+    adapter,
+    format: 'xml_plu',
     backupDir: BACKUP_DIR,
   });
 });

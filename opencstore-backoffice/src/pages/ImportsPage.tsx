@@ -74,6 +74,29 @@ export default function ImportsPage() {
     }
   }
 
+  async function handleCommanderImport() {
+    setError(null);
+    setResult(null);
+    setImporting(true);
+    try {
+      const summary = await ImportService.importFromCommander();
+      if ('error' in summary) {
+        setError(summary.error);
+        return;
+      }
+      setResult(
+        `Commander sync complete. ${summary.recordsOk} OK, ${summary.recordsSkipped} skipped, ` +
+        `${summary.recordsError} errors. Item-level tax/age-restriction flags weren't available from ` +
+        `this live feed — review new items in Item Audit.`
+      );
+      await loadHistory();
+    } catch (err: unknown) {
+      setError(String(err));
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -83,6 +106,9 @@ export default function ImportsPage() {
           <div className="flex gap-2">
             <button className="btn-secondary" onClick={handleMockImport} disabled={importing}>
               Mock Import
+            </button>
+            <button className="btn-secondary" onClick={handleCommanderImport} disabled={importing}>
+              Sync from Commander
             </button>
             <button className="btn-primary" onClick={handlePickFile} disabled={importing}>
               {importing ? 'Importing…' : 'Import File…'}

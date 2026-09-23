@@ -115,6 +115,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Import ────────────────────────────────────────────────────────────────
   runMockImport:         ()                              => invoke('import:runMockImport'),
   importFromFile:        (filePath: string, format: string) => invoke('import:fromFile', { filePath, format }),
+  importFromCommander:   ()                              => invoke('import:fromCommander'),
   getImportHistory:      ()                              => invoke('import:getHistory'),
   openFileDialog:        ()                              => invoke('import:openFileDialog'),
 
@@ -261,6 +262,7 @@ declare global {
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;
       importFromFile:        (filePath: string, format: string) => Promise<unknown>;
+      importFromCommander:   () => Promise<unknown>;
       getImportHistory:      () => Promise<unknown[]>;
       openFileDialog:        () => Promise<{ canceled: boolean; filePaths: string[] }>;
       getItems:              (opts: unknown) => Promise<{ items: Array<{ id: string; pos_plu_id: string; description: string }>; total: number }>;

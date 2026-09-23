@@ -143,11 +143,11 @@ describe('parseRubyDepartment (reptname=department)', () => {
   const xml = `<?xml version="1.0"?>
     <pd:departmentPd xmlns:pd="urn:vfi-sapphire:pd.2001-10-01" xmlns:vs="urn:vfi-sapphire:vs.2001-10-01">
       <deptInfo>
-        <vs:deptBase name="CIGARETTES"/>
+        <vs:deptBase sysid="10" name="CIGARETTES"/>
         <netSales>2945.54</netSales>
       </deptInfo>
       <deptInfo>
-        <vs:deptBase name="GROCERY"/>
+        <vs:deptBase sysid="6" name="GROCERY"/>
         <netSales>80.96</netSales>
       </deptInfo>
     </pd:departmentPd>`;
@@ -157,6 +157,23 @@ describe('parseRubyDepartment (reptname=department)', () => {
     expect(report.departments).toHaveLength(2);
     expect(report.departments.find(d => d.name === 'CIGARETTES')?.netSales).toBeCloseTo(2945.54);
     expect(report.departments.find(d => d.name === 'GROCERY')?.netSales).toBeCloseTo(80.96);
+  });
+
+  it('captures the department sysid when present — the same code vPLUs reports', () => {
+    const report = parseRubyDepartment(xml);
+    expect(report.departments.find(d => d.name === 'CIGARETTES')?.sysid).toBe('10');
+    expect(report.departments.find(d => d.name === 'GROCERY')?.sysid).toBe('6');
+  });
+
+  it('reports null sysid rather than throwing when deptBase has none', () => {
+    const noSysid = `<?xml version="1.0"?>
+      <pd:departmentPd xmlns:pd="urn:vfi-sapphire:pd.2001-10-01" xmlns:vs="urn:vfi-sapphire:vs.2001-10-01">
+        <deptInfo>
+          <vs:deptBase name="MISC"/>
+          <netSales>10.00</netSales>
+        </deptInfo>
+      </pd:departmentPd>`;
+    expect(parseRubyDepartment(noSysid).departments[0].sysid).toBeNull();
   });
 });
 

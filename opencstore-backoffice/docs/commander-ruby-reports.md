@@ -1,4 +1,4 @@
-# Commander Ruby period reports (`vrubyrept`) — reference notes
+# Commander Ruby period reports (`vrubyrept`) and live PLU catalog (`vPLUs`) — reference notes
 
 Unlike `docs/integration-notes.md`'s fuel price/totals section (verified against a real
 production Commander unit), the report methods on `CommanderNaxmlClient`
@@ -65,10 +65,32 @@ that adds a second source to compare against, not a replacement. See
 `src/modules/reconciliation/reconciliation-rules.ts` for the pure matching/variance logic
 and its tests.
 
+## Live PLU catalog (`vPLUs`)
+
+Distinct command family from the reports above — sent over the same `POST /cgi-bin/NAXML`
+lane as the verified fuel commands, not the `GET /cgi-bin/CGILink` lane the report family
+uses. `CommanderNaxmlClient.getPluPage`/`getFullPluCatalog`/`getPluByUpc` (parsing in
+`integrations/commander/plu-parser.ts`) page through a `PLUSelect` request body and parse
+`<domain:PLU>` nodes: `upc`, `upcModifier`, `description`, `department` (a sysid code, not
+a name), `price`, `SellUnit`, and a `taxRates` presence check used as a `tax_flag`
+heuristic. Unlike the XML *file* export this app already parses
+(`integrations/parsers/XmlPluParser.ts`), the live feed does **not** expose explicit
+Taxable/AgeRestricted attributes — `age_restricted`/`foodstamp_eligible` default to false
+and need a pass through Item Audit after any live sync.
+
+`integrations/commander/CommanderPluAdapter.ts` wraps this as an `IPosAdapter` so a
+Commander sync (Imports page → "Sync from Commander") flows through the exact same
+backup → parse → persist pipeline as Mock/File import, read-only (no `uPLUs` write-back
+wired). Department names are resolved best-effort via the Ruby `department` report's
+`vs:deptBase sysid` attribute — the same sysid `vPLUs` reports — falling back to
+`"DEPT {sysid}"` when that report doesn't have a match.
+
 ## Related
 
 - `docs/integration-notes.md` — the verified fuel price/totals section, and the overall
   Commander connection model (session handling, credential storage, TLS).
 - `integrations/commander/CommanderNaxmlClient.ts` — implementation.
-- `backend/services/ReconciliationService.ts` — the first consumer: compares a pulled
-  `summary`/`department` report against manually-entered daily sales and shift totals.
+- `backend/services/ReconciliationService.ts` — the first Ruby-report consumer: compares a
+  pulled `summary`/`department` report against manually-entered daily sales and shift totals.
+- `integrations/commander/CommanderPluAdapter.ts` — the `vPLUs` consumer, wired into
+  `ImportService` via the Imports page's "Sync from Commander" button.

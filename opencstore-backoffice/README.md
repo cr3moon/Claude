@@ -110,7 +110,7 @@ On first launch, the **Onboarding Wizard** will walk you through:
 | **File Import** | Select XML or CSV export files from your POS back-office (PLU/item catalog) |
 | **Verifone Ruby2** | File import available; no direct API integration yet |
 | **Commander — fuel prices/totals** | Real connection over Commander's NAXML API (see Settings → Fuel POS Connection). Read-only: live fuel prices, fuel totals, pump maintenance counters. |
-| **Commander — PLU catalog** | File import only; no direct API integration for the item catalog yet |
+| **Commander — PLU catalog** | Live sync via NAXML `vPLUs` ("Sync from Commander" on the Imports page), read-only, plus File Import as a fallback. Item-level tax/age-restriction flags aren't available from the live feed — review new items in Item Audit after syncing. |
 
 > All write operations go through: **Backup → Dry-run validation → Owner approval → Export file → Manual POS import**.  
 > Nothing is ever written to your POS automatically — except the Commander fuel connection's
