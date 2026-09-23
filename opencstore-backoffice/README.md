@@ -43,12 +43,18 @@ This starts the Electron app with the Vite development server.
 > so the failing build attempt is for a target the app doesn't use. Work around it with:
 > ```bash
 > npm install --ignore-scripts
+> npm rebuild electron
 > npx electron-builder install-app-deps
 > ```
-> The second command rebuilds `better-sqlite3` against Electron's ABI directly (this
-> also normally runs automatically via the `postinstall` script — but only when
-> `npm install` exits cleanly, which it won't if the first attempt hard-fails on
-> `better-sqlite3` before reaching it).
+> `--ignore-scripts` skips **every** package's install/postinstall scripts, not just
+> `better-sqlite3`'s failing build — including Electron's own postinstall, which
+> downloads its actual binary. Without `npm rebuild electron`, Electron fails to start
+> with `Error: Electron failed to install correctly, please delete node_modules/electron
+> and try installing again`. `npm rebuild electron` reruns just that one package's
+> install script; `electron-builder install-app-deps` then rebuilds `better-sqlite3`
+> against Electron's ABI (this pair also normally runs automatically via the
+> `postinstall` script — but only when `npm install` exits cleanly, which it won't if
+> the first attempt hard-fails on `better-sqlite3` before reaching it).
 
 ### Build Installer
 

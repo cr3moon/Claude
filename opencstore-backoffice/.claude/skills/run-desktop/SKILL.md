@@ -94,13 +94,18 @@ npm run dev   # opens a real window with devtools; useless headless
   run automatically. Recover with:
   ```
   npm install --ignore-scripts
+  npm rebuild electron
   npx electron-builder install-app-deps
   ```
-  The first command still completes every other package's install (including
-  Electron's own binary download) — it only skips the scripts, and the only
-  one that matters here is better-sqlite3's failing build attempt for the
-  wrong target. The second command does the real rebuild, against Electron's
-  ABI, same as the normal postinstall would have.
+  `--ignore-scripts` skips **every** package's install/postinstall scripts, not
+  just better-sqlite3's failing build — including Electron's own postinstall,
+  which downloads its actual binary. Skip the `npm rebuild electron` step and
+  the app fails to launch with `Error: Electron failed to install correctly,
+  please delete node_modules/electron and try installing again` (confirmed on
+  a real fresh-clone Windows run). `npm rebuild electron` reruns just that one
+  package's install script to fetch the binary; `electron-builder
+  install-app-deps` then does the real better-sqlite3 rebuild against
+  Electron's ABI, same as the normal postinstall would have.
 - **The dev launch script never set `VITE_DEV_SERVER_URL`.** `app/main/index.ts`
   used to decide dev-vs-packaged by checking that env var, but `npm run dev`
   (`concurrently` running `vite` + `wait-on tcp:5173 && electron .`) never set
