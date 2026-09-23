@@ -98,7 +98,15 @@ export class CommanderNaxmlClient {
     attributeNamePrefix: '@_',
     isArray: (name) => ['fuelProduct', 'fpDispenserData', 'pump', 'hose'].includes(name),
     parseTagValue: true,
-    parseAttributeValue: true,
+    // Deliberately false: fast-xml-parser's numeric coercion treats
+    // exponential-looking strings without a leading digit (e.g. the very
+    // common ethanol-blend grade names "E10"/"E15"/"E20"/"E85") as invalid
+    // scientific notation and silently replaces them with NaN, corrupting
+    // real grade names. All numeric attributes we care about (sysid,
+    // NAXMLFuelGradeID, servLevel, tier, mop) are already explicitly
+    // wrapped in Number(...) below, so leaving attributes as raw strings
+    // costs nothing and avoids this data-corrupting coercion for names.
+    parseAttributeValue: false,
     trimValues: true,
   });
 
