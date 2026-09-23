@@ -28,7 +28,7 @@ interface AdminForm {
 const ADAPTER_OPTIONS = [
   { value: 'mock_commander', label: 'Mock / Demo (recommended for setup)' },
   { value: 'file_import',    label: 'File Import (XML / CSV)' },
-  { value: 'commander',      label: 'Verifone Commander (not yet available)' },
+  { value: 'commander',      label: 'Verifone Commander (fuel prices/totals live; item catalog via File Import)' },
 ];
 
 export default function OnboardingPage() {
