@@ -917,6 +917,49 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_time_clock_one_open_per_user
   ON time_clock_entries(user_id) WHERE clock_out IS NULL;
 
 -- ============================================================
+-- DASHBOARD DATA (manual sales entry + fuel snapshots)
+-- ============================================================
+--
+-- This app has no live POS transaction feed — transactions/sales_daily/
+-- sales_shift above are schema for one, but nothing populates them. Until
+-- a real feed exists, department/merchandise sales for the dashboard come
+-- from a manager typing in each day's department totals by hand (one row
+-- per store/date/department; re-entering a day updates it rather than
+-- duplicating). Fuel sales/volume trend comes from periodically snapshotting
+-- Commander's cumulative day-total (itself a live read, not stored
+-- history) into a row per store/date/grade — see FuelSnapshotService.
+
+CREATE TABLE IF NOT EXISTS manual_sales_entries (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  entry_date      TEXT NOT NULL,   -- 'YYYY-MM-DD'
+  department_id   TEXT NOT NULL REFERENCES departments(id),
+  amount          REAL NOT NULL,
+  entered_by      TEXT NOT NULL REFERENCES users(id),
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_manual_sales_unique ON manual_sales_entries(store_id, entry_date, department_id);
+CREATE INDEX IF NOT EXISTS idx_manual_sales_store_date ON manual_sales_entries(store_id, entry_date);
+
+CREATE TABLE IF NOT EXISTS fuel_sales_snapshots (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  snapshot_date   TEXT NOT NULL,   -- 'YYYY-MM-DD'
+  grade           TEXT NOT NULL,   -- matches CommanderNaxmlClient's FuelGradeTotal.grade
+  gallons         REAL NOT NULL,
+  revenue         REAL NOT NULL,
+  source          TEXT NOT NULL DEFAULT 'commander', -- 'commander' | 'manual'
+  created_by      TEXT NOT NULL REFERENCES users(id),
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fuel_snapshot_unique ON fuel_sales_snapshots(store_id, snapshot_date, grade);
+CREATE INDEX IF NOT EXISTS idx_fuel_snapshot_store_date ON fuel_sales_snapshots(store_id, snapshot_date);
+
+-- ============================================================
 -- SUPPLEMENTAL INDEXES
 -- ============================================================
 

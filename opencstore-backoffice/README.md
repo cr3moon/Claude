@@ -87,7 +87,7 @@ On first launch, the **Onboarding Wizard** will walk you through:
 
 | Page | What You Can Do |
 |------|----------------|
-| **Dashboard** | See today's sales, pending recommendations, low-margin alerts, quick actions |
+| **Dashboard** | Pending recommendations and audit flags, plus a Store Performance section: last received fuel price, Department/Merchandise/Fuel Sales and Fuel Volume charts by month, and a "Log Daily Sales" entry point |
 | **Data Import** | Load sample data or import XML/CSV exports from your POS |
 | **Inventory** | Track on-hand quantity and value per item; receive deliveries from vendors (updates cost + on-hand); log manual adjustments for shrink, waste, damage, and physical counts |
 | **Lottery** | Track instant ticket games and physical books through their lifecycle (received → active → settled/returned); reconcile sales by recording a ticket count against each active book |
@@ -116,6 +116,12 @@ On first launch, the **Onboarding Wizard** will walk you through:
 > Nothing is ever written to your POS automatically — except the Commander fuel connection's
 > read-only price/totals lookups, which never write anything by design (see `docs/integration-notes.md`
 > for the write methods that exist in code but are intentionally not wired to any button).
+
+> **No live POS transaction feed.** There's no live register/transaction integration yet — the
+> Dashboard's Department Sales and Merchandise Sales charts are fed by manually logging each day's
+> department totals ("Log Daily Sales" on the Dashboard), and the Fuel Sales/Volume trend is built
+> from periodically snapshotting Commander's live fuel totals into history (automatically once a day
+> when the Dashboard loads, if connected). See `docs/integration-notes.md` for details.
 
 ---
 

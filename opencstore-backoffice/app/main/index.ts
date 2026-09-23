@@ -17,6 +17,8 @@ import { InventoryService } from '../../backend/services/InventoryService';
 import { LotteryService } from '../../backend/services/LotteryService';
 import { TimeClockService } from '../../backend/services/TimeClockService';
 import { StoreAccessService } from '../../backend/services/StoreAccessService';
+import { DailySalesService } from '../../backend/services/DailySalesService';
+import { FuelSnapshotService } from '../../backend/services/FuelSnapshotService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
 import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
@@ -48,6 +50,8 @@ const inventorySvc = new InventoryService(dbService, auditLogger);
 const lotterySvc  = new LotteryService(dbService, auditLogger);
 const timeClockSvc = new TimeClockService(dbService, auditLogger);
 const storeAccessSvc = new StoreAccessService(dbService, auditLogger);
+const dailySalesSvc = new DailySalesService(dbService, auditLogger);
+const fuelSnapshotSvc = new FuelSnapshotService(dbService, auditLogger);
 const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc, timeClockSvc);
 
 // Active session state (lightweight, no persistence needed for MVP)
@@ -448,13 +452,21 @@ ipcMain.handle('commander:getPumpMaintenanceTotals', async () => {
 
 // Per-site allow-list of which fuel grades to display (e.g. a site with a
 // Commander unit configured with unused/legacy grades it doesn't sell).
-// Stored as a JSON array under a single app_settings key — this app is
-// single-store per install, so no store_id scoping is needed (same pattern
-// as onboarding_complete). Empty array or unset means "no filter, show all".
-const VISIBLE_GRADES_KEY = 'commander_visible_grades';
+// Stored as a JSON array under an app_settings key scoped to the active
+// store — app_settings itself has no store_id column, so a multi-store
+// install keys each store's grade filter separately by suffixing the
+// store id; a single-store install just gets one such key. (This was
+// briefly a single global key with no store scoping, from before
+// multi-store existed — that let one store's Commander grade filter leak
+// into another's the moment a second store was added.) Empty array or
+// unset means "no filter, show all".
+function visibleGradesKey(storeId: string): string {
+  return `commander_visible_grades:${storeId}`;
+}
 
 ipcMain.handle('commander:getVisibleGrades', (): string[] | null => {
-  const raw = dbService.getSetting(VISIBLE_GRADES_KEY);
+  if (!activeStoreId) return null;
+  const raw = dbService.getSetting(visibleGradesKey(activeStoreId));
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -465,12 +477,80 @@ ipcMain.handle('commander:getVisibleGrades', (): string[] | null => {
 });
 
 ipcMain.handle('commander:setVisibleGrades', (_e, grades: string[]) => {
+  if (!activeStoreId) return { error: 'Not authenticated' };
   dbService.setSetting(
-    VISIBLE_GRADES_KEY,
+    visibleGradesKey(activeStoreId),
     JSON.stringify(grades),
     "Fuel grades to display for this site's Commander connection (empty = show all)"
   );
   return { success: true };
+});
+
+// ── Fuel sales snapshots (dashboard trend data) ────────────────────────────
+//
+// Commander's getFuelTotals only ever gives a live cumulative total for a
+// period — capturing it into fuel_sales_snapshots is what builds up a real
+// day-by-day trend over time. Needs the live commanderClient, so the
+// capture itself happens here rather than inside FuelSnapshotService.
+
+ipcMain.handle('fuelSnapshot:captureToday', async () => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  if (!commanderClient) return { error: 'Not connected to Commander. Test the connection first.' };
+  try {
+    const totals = await commanderClient.getFuelTotals(2); // 2 = day
+    const today = new Date().toISOString().slice(0, 10);
+    fuelSnapshotSvc.captureFromTotals(activeStoreId, activeUserId, today, totals);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('fuelSnapshot:getVolumeTrend', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
+  if (!activeStoreId) return [];
+  return fuelSnapshotSvc.getVolumeTrend(activeStoreId, startDate, endDate);
+});
+
+ipcMain.handle('fuelSnapshot:getRevenueTrend', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
+  if (!activeStoreId) return [];
+  return fuelSnapshotSvc.getRevenueTrend(activeStoreId, startDate, endDate);
+});
+
+ipcMain.handle('fuelSnapshot:getPeriodTotals', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
+  if (!activeStoreId) return { gallons: 0, revenue: 0 };
+  return fuelSnapshotSvc.getPeriodTotals(activeStoreId, startDate, endDate);
+});
+
+// ── Manual daily sales entry (dashboard department/merchandise data) ──────
+
+ipcMain.handle('dailySales:upsertEntry', (_e, { entryDate, departmentId, amount }: { entryDate: string; departmentId: string; amount: number }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    dailySalesSvc.upsertEntry(activeStoreId, activeUserId, entryDate, departmentId, amount);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('dailySales:getEntriesForDate', (_e, entryDate: string) => {
+  if (!activeStoreId) return [];
+  return dailySalesSvc.getEntriesForDate(activeStoreId, entryDate);
+});
+
+ipcMain.handle('dailySales:getDepartmentTotals', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
+  if (!activeStoreId) return [];
+  return dailySalesSvc.getDepartmentTotals(activeStoreId, startDate, endDate);
+});
+
+ipcMain.handle('dailySales:getDailyTotals', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
+  if (!activeStoreId) return [];
+  return dailySalesSvc.getDailyTotals(activeStoreId, startDate, endDate);
+});
+
+ipcMain.handle('dailySales:getPeriodTotal', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
+  if (!activeStoreId) return 0;
+  return dailySalesSvc.getPeriodTotal(activeStoreId, startDate, endDate);
 });
 
 // ── Settings ─────────────────────────────────────────────────────────────────

@@ -113,6 +113,32 @@ password and should never be persisted.
 
 ---
 
+## Dashboard sales data (no live POS transaction feed)
+
+The `transactions`/`transaction_items`/`sales_daily`/`sales_shift` tables in `database/schema.sql`
+have never been populated by anything — no import, no seed script, no live feed. Until a real
+POS transaction integration exists, the Dashboard's sales charts (Store Performance section,
+`src/components/Dashboard/SalesPerformanceSection.tsx`) are fed by two stand-ins:
+
+- **Department Sales / Merchandise Sales** — `manual_sales_entries`: a manager types in each
+  day's total per department via the "Log Daily Sales" dialog. One row per
+  store/date/department (upserted, so re-entering a day updates it). Department Sales sums by
+  department across the selected month; Merchandise Sales sums across departments per day —
+  same rows, two different `GROUP BY`s (`backend/services/DailySalesService.ts`).
+- **Fuel Sales / Fuel Volume** — `fuel_sales_snapshots`: Commander's `getFuelTotals` only ever
+  gives a live cumulative total for a period (shift/day/month/year), not stored history.
+  Capturing "today's total so far" into this table (one row per store/date/grade, upserted) is
+  what turns that live snapshot into an actual day-by-day trend — done automatically once when
+  the Dashboard loads if a Commander connection exists (`fuelSnapshot:captureToday` in
+  `app/main/index.ts`, which is the only place the live `commanderClient` is reachable from), plus
+  idempotent re-capture on every subsequent load that day.
+
+Both are real, permanent data — not mocked — they just come from a human or a periodic snapshot
+instead of a live transaction stream. Once a real POS feed exists, the natural migration is to
+populate `sales_daily` from it directly and have `DailySalesService` read from that instead of
+`manual_sales_entries`; `FuelSnapshotService`'s snapshot approach stays valid regardless, since
+Commander itself never exposes historical totals no matter what feeds the rest of the app.
+
 ## Adding a new PLU/pricebook adapter
 
 1. Create `integrations/adapters/MyAdapter.ts` implementing `IPosAdapter`.

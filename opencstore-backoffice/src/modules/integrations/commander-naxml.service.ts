@@ -95,6 +95,6 @@ export const CommanderNaxmlService = {
   },
 
   async setVisibleGrades(grades: string[]): Promise<void> {
-    await window.electronAPI.commanderSetVisibleGrades(grades);
+    unwrap(await window.electronAPI.commanderSetVisibleGrades(grades));
   },
 };

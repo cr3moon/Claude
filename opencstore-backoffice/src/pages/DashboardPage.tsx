@@ -4,6 +4,7 @@ import MetricCard from '../components/common/MetricCard';
 import StatusBadge from '../components/common/StatusBadge';
 import { fmtMoney } from '../lib/currency';
 import { fmtDateTime } from '../lib/date';
+import SalesPerformanceSection from '../components/Dashboard/SalesPerformanceSection';
 
 interface DashboardMetrics {
   totalSkus:          number;
@@ -116,6 +117,8 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      <SalesPerformanceSection />
     </>
   );
 }

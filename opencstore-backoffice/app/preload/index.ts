@@ -52,6 +52,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commanderGetVisibleGrades: ()                          => invoke('commander:getVisibleGrades'),
   commanderSetVisibleGrades: (grades: string[])          => invoke('commander:setVisibleGrades', grades),
 
+  // ── Fuel sales snapshots ─────────────────────────────────────────────────
+  fuelSnapshotCaptureToday:     ()                        => invoke('fuelSnapshot:captureToday'),
+  fuelSnapshotGetVolumeTrend:   (data: unknown)           => invoke('fuelSnapshot:getVolumeTrend', data),
+  fuelSnapshotGetRevenueTrend:  (data: unknown)           => invoke('fuelSnapshot:getRevenueTrend', data),
+  fuelSnapshotGetPeriodTotals:  (data: unknown)           => invoke('fuelSnapshot:getPeriodTotals', data),
+
+  // ── Manual daily sales entry ─────────────────────────────────────────────
+  dailySalesUpsertEntry:        (data: unknown)           => invoke('dailySales:upsertEntry', data),
+  dailySalesGetEntriesForDate:  (entryDate: string)        => invoke('dailySales:getEntriesForDate', entryDate),
+  dailySalesGetDepartmentTotals: (data: unknown)          => invoke('dailySales:getDepartmentTotals', data),
+  dailySalesGetDailyTotals:     (data: unknown)           => invoke('dailySales:getDailyTotals', data),
+  dailySalesGetPeriodTotal:     (data: unknown)           => invoke('dailySales:getPeriodTotal', data),
+
   // ── Inventory ─────────────────────────────────────────────────────────────
   inventoryListVendors:       ()                          => invoke('inventory:listVendors'),
   inventoryCreateVendor:      (data: unknown)              => invoke('inventory:createVendor', data),
@@ -183,7 +196,16 @@ declare global {
         totalMoneyUsd: number; totalVolumeGallons: number; totalTransactions: number;
       }>>;
       commanderGetVisibleGrades: () => Promise<string[] | null>;
-      commanderSetVisibleGrades: (grades: string[]) => Promise<{ success: boolean }>;
+      commanderSetVisibleGrades: (grades: string[]) => Promise<{ success: boolean } | { error: string }>;
+      fuelSnapshotCaptureToday:     () => Promise<{ success: boolean } | { error: string }>;
+      fuelSnapshotGetVolumeTrend:   (data: unknown) => Promise<Array<{ grade: string; points: Array<{ date: string; value: number }> }>>;
+      fuelSnapshotGetRevenueTrend:  (data: unknown) => Promise<Array<{ date: string; value: number }>>;
+      fuelSnapshotGetPeriodTotals:  (data: unknown) => Promise<{ gallons: number; revenue: number }>;
+      dailySalesUpsertEntry:        (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      dailySalesGetEntriesForDate:  (entryDate: string) => Promise<unknown[]>;
+      dailySalesGetDepartmentTotals: (data: unknown) => Promise<Array<{ category: string; value: number }>>;
+      dailySalesGetDailyTotals:     (data: unknown) => Promise<Array<{ date: string; value: number }>>;
+      dailySalesGetPeriodTotal:     (data: unknown) => Promise<number>;
       inventoryListVendors:       () => Promise<unknown[]>;
       inventoryCreateVendor:      (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
       inventoryCreateDelivery:    (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
