@@ -26,6 +26,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Onboarding ────────────────────────────────────────────────────────────
   completeOnboarding:    (payload: unknown)              => invoke('onboarding:complete', payload),
 
+  // ── User management / recovery ───────────────────────────────────────────
+  usersList:             ()                              => invoke('users:list'),
+  usersCreate:           (data: unknown)                 => invoke('users:create', data),
+  usersResetPassword:    (data: unknown)                 => invoke('users:resetPassword', data),
+  usersSetActive:        (data: unknown)                 => invoke('users:setActive', data),
+  authGetRecoveryUsernames: (storeName: string)          => invoke('auth:getRecoveryUsernames', { storeName }),
+  authRecoverPassword:   (data: unknown)                 => invoke('auth:recoverPassword', data),
+
   // ── Dashboard ─────────────────────────────────────────────────────────────
   getDashboardMetrics:   ()                              => invoke('dashboard:getMetrics'),
   getDashboardSummary:   ()                              => invoke('dashboard:getMetrics'),  // alias
@@ -162,6 +170,12 @@ declare global {
       login:                 (u: string, p: string) => Promise<{ ok: boolean; user?: unknown; error?: string }>;
       logout:                () => Promise<void>;
       completeOnboarding:    (payload: unknown) => Promise<{ success: boolean; storeId: string; userId: string }>;
+      usersList:             () => Promise<Array<{ id: string; username: string; display_name: string; role: string; is_active: boolean; created_at: string }>>;
+      usersCreate:           (data: unknown) => Promise<{ success: boolean; userId: string } | { error: string }>;
+      usersResetPassword:    (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      usersSetActive:        (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      authGetRecoveryUsernames: (storeName: string) => Promise<Array<{ id: string; username: string; display_name: string }>>;
+      authRecoverPassword:   (data: unknown) => Promise<{ success: boolean } | { error: string }>;
       getDashboardMetrics:   () => Promise<unknown>;
       getDashboardSummary:   () => Promise<unknown>;
       getRecentAuditItems:   () => Promise<unknown[]>;

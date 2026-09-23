@@ -17,6 +17,7 @@ import { InventoryService } from '../../backend/services/InventoryService';
 import { LotteryService } from '../../backend/services/LotteryService';
 import { TimeClockService } from '../../backend/services/TimeClockService';
 import { StoreAccessService } from '../../backend/services/StoreAccessService';
+import { UserManagementService } from '../../backend/services/UserManagementService';
 import { DailySalesService } from '../../backend/services/DailySalesService';
 import { FuelSnapshotService } from '../../backend/services/FuelSnapshotService';
 import { AuditLogger } from '../../audit/AuditLogger';
@@ -50,6 +51,7 @@ const inventorySvc = new InventoryService(dbService, auditLogger);
 const lotterySvc  = new LotteryService(dbService, auditLogger);
 const timeClockSvc = new TimeClockService(dbService, auditLogger);
 const storeAccessSvc = new StoreAccessService(dbService, auditLogger);
+const userMgmtSvc = new UserManagementService(dbService, auditLogger);
 const dailySalesSvc = new DailySalesService(dbService, auditLogger);
 const fuelSnapshotSvc = new FuelSnapshotService(dbService, auditLogger);
 const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc, timeClockSvc);
@@ -217,6 +219,62 @@ ipcMain.handle('onboarding:complete', async (_e, payload: {
   activeStoreId = storeId;
 
   return { success: true, storeId, userId };
+});
+
+// ── User Management (owner-facing) ──────────────────────────────────────────
+
+ipcMain.handle('users:list', () => {
+  if (!activeStoreId) return [];
+  return userMgmtSvc.listUsers(activeStoreId);
+});
+
+ipcMain.handle('users:create', async (_e, input: {
+  username: string; password: string; display_name: string; role: 'owner' | 'manager' | 'cashier';
+}) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    const userId = await userMgmtSvc.createUser(activeStoreId, activeUserId, input);
+    return { success: true, userId };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('users:resetPassword', async (_e, { userId, newPassword }: { userId: string; newPassword: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    await userMgmtSvc.resetPassword(userId, activeStoreId, newPassword, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('users:setActive', async (_e, { userId, active }: { userId: string; active: boolean }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    userMgmtSvc.setActive(userId, activeStoreId, active, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+// ── Emergency password recovery (no active session; gated by store name) ───
+
+ipcMain.handle('auth:getRecoveryUsernames', (_e, { storeName }: { storeName: string }) => {
+  return userMgmtSvc.getRecoveryUsernames(storeName);
+});
+
+ipcMain.handle('auth:recoverPassword', async (_e, { storeName, username, newPassword }: {
+  storeName: string; username: string; newPassword: string;
+}) => {
+  try {
+    await userMgmtSvc.recoverPassword(storeName, username, newPassword);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 });
 
 // ── Dashboard ────────────────────────────────────────────────────────────────

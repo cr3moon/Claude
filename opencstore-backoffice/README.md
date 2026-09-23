@@ -97,7 +97,7 @@ On first launch, the **Onboarding Wizard** will walk you through:
 | **Pricing** | Run margin analysis; review and approve price change recommendations |
 | **Reports** | Generate and archive 13 report types; export to CSV; print |
 | **Operations** | Run shift-open, shift-close, and day-close checklists with sign-off |
-| **Settings** | View store configuration and current user info |
+| **Settings** | View store configuration and current user info; owners manage user accounts (create, reset password, deactivate) |
 | **Audit Log** | Read-only, append-only record of every action taken |
 
 ---
@@ -175,6 +175,17 @@ opencstore-backoffice/
 - The app runs fully offline — no data leaves your machine
 - The preload/contextBridge pattern prevents renderer from accessing Node.js directly
 - Content Security Policy is set on the main window
+
+### Account recovery
+
+Owners manage their team's accounts from **Settings → Users**: create a login, reset anyone's
+password, or deactivate someone who's left. The app also won't let you deactivate the only
+active owner account, so you can't lock yourself out that way.
+
+If nobody can log in at all, the **"Forgot password?"** link on the sign-in screen resets a
+password using your store's name (set during onboarding) plus an existing active username — no
+recovery key or emailed link, since this app has no server to send one from. See
+`docs/integration-notes.md` for the reasoning behind gating it on the store name specifically.
 
 ---
 

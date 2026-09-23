@@ -139,6 +139,36 @@ populate `sales_daily` from it directly and have `DailySalesService` read from t
 `manual_sales_entries`; `FuelSnapshotService`'s snapshot approach stays valid regardless, since
 Commander itself never exposes historical totals no matter what feeds the rest of the app.
 
+## Account recovery
+
+There is no server component and no email/SMS to send a reset link through, so account
+recovery has to work entirely from data already in the local SQLite file:
+
+- **Manage Users (Settings, owner-only, `manage_users` permission)** —
+  `backend/services/UserManagementService.ts` / IPC `users:*` / `src/components/Settings/UsersCard.tsx`.
+  An owner who's still logged in can create accounts, reset any user's password, and
+  deactivate/reactivate. `setActive` refuses to deactivate the last active owner in a store
+  (`wouldRemoveLastActiveOwner` in `src/modules/users/user-management-rules.ts`) — the one
+  lockout this app can prevent outright, since a store with no active owner has nobody left who
+  can fix anything from Settings.
+- **Emergency recovery (nobody can log in)** — the Login page's "Forgot password?" link
+  (`src/components/Auth/ForgotPasswordDialog.tsx`), backed by `UserManagementService.recoverPassword`
+  / IPC `auth:recoverPassword` (and `auth:getRecoveryUsernames` to populate the account picker).
+  It resets a password given the store's name (set during onboarding, matched case-insensitively
+  and trimmed) plus an existing active username — no persisted recovery secret required, so it
+  works immediately for every existing install, not just ones set up after this feature shipped.
+
+**Why gate on the store name and not a file-based secret or a one-time recovery key:** this is a
+local, single-tenant desktop app. On Windows, the database lives under the OS user's own
+`%APPDATA%`, so anyone who can already reach this app's login screen already has the same
+filesystem access as that Windows user — writing a recovery secret to a file next to the database
+wouldn't raise the bar over what an attacker with that access already has. A recovery key shown
+once at account creation was considered too, but rejected as the *sole* mechanism because it
+can't retroactively help an install that was set up before such a key existed — which is exactly
+the situation for every current installation. The store name is not a strong secret, but it's not
+public either, and combining it with a specific active username is enough to stop someone from
+resetting a password blind while still working today, for every install, with no new setup step.
+
 ## Adding a new PLU/pricebook adapter
 
 1. Create `integrations/adapters/MyAdapter.ts` implementing `IPosAdapter`.

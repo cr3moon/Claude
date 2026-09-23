@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../modules/auth/AuthContext';
+import ForgotPasswordDialog from '../components/Auth/ForgotPasswordDialog';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
   const [busy,     setBusy]     = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,8 +79,18 @@ export default function LoginPage() {
           >
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
+
+          <button
+            type="button"
+            className="w-full text-center text-xs text-gray-500 hover:text-gray-700 hover:underline"
+            onClick={() => setShowRecovery(true)}
+          >
+            Forgot password?
+          </button>
         </form>
       </div>
+
+      {showRecovery && <ForgotPasswordDialog onClose={() => setShowRecovery(false)} />}
     </div>
   );
 }
