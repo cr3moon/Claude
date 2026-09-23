@@ -218,8 +218,14 @@ export class CommanderNaxmlClient {
 
     const grades: FuelGradePrice[] = [];
     for (const product of products) {
-      const name = String(product['@_name'] ?? '');
-      if (!name || name.toUpperCase() === 'UNUSED') continue;
+      const name = String(product['@_name'] ?? '').trim();
+      // The reference (commander-deconstructed §10.7) documents unused grade
+      // slots as literally name="UNUSED", but real units observed in the wild
+      // deviate: numbered variants ("UNUSED1".."UNUSED20") and at least one
+      // unconfigured slot whose firmware serializes its name as the literal
+      // text "NaN". Filter defensively rather than matching the spec exactly.
+      const upper = name.toUpperCase();
+      if (!name || upper === 'NAN' || upper.startsWith('UNUSED')) continue;
 
       const prices = this.toArray((product['prices'] as Record<string, unknown>)?.['price']);
       const grade: FuelGradePrice = {
