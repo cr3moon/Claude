@@ -87,8 +87,9 @@ On first launch, the **Onboarding Wizard** will walk you through:
 
 | Page | What You Can Do |
 |------|----------------|
-| **Dashboard** | Pending recommendations and audit flags, plus a Store Performance section: last received fuel price, Department/Merchandise/Fuel Sales and Fuel Volume charts by month, and a "Log Daily Sales" entry point |
-| **Data Import** | Load sample data or import XML/CSV exports from your POS |
+| **Dashboard** | Pending recommendations and audit flags, plus a Store Performance section: last received fuel price, Department/Merchandise/Fuel Sales and Fuel Volume charts by month, a "Log Daily Sales" entry point, and a Daily Reconciliation card comparing manual entries against a pulled Commander report |
+| **Transactions** | Live sales tickets pulled from Commander's T-Log for a chosen date, with per-ticket line-item detail (Commander sites only) |
+| **Data Import** | Load sample data, import XML/CSV exports from your POS, or sync the live item catalog from Commander |
 | **Inventory** | Track on-hand quantity and value per item; receive deliveries from vendors (updates cost + on-hand); log manual adjustments for shrink, waste, damage, and physical counts |
 | **Lottery** | Track instant ticket games and physical books through their lifecycle (received → active → settled/returned); reconcile sales by recording a ticket count against each active book |
 | **Time Clock** | Every employee clocks themselves in/out with an optional unpaid break; owners/managers see who's on the clock, correct entries (e.g. a forgotten clock-out), and run payroll hours/cost reports |

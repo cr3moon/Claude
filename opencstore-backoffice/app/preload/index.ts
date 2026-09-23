@@ -78,6 +78,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reconciliationCaptureShiftReports: (dateIso: string)     => invoke('reconciliation:captureShiftReports', { dateIso }),
   reconciliationGetDailyReconciliation: (dateIso: string)  => invoke('reconciliation:getDailyReconciliation', { dateIso }),
 
+  // ── Commander T-Log sync (live transactions) ─────────────────────────────
+  transactionsImportDaily:   (dateIso: string)             => invoke('transactions:importDaily', { dateIso }),
+  transactionsListForDate:   (dateIso: string)             => invoke('transactions:listForDate', { dateIso }),
+
   // ── Inventory ─────────────────────────────────────────────────────────────
   inventoryListVendors:       ()                          => invoke('inventory:listVendors'),
   inventoryCreateVendor:      (data: unknown)              => invoke('inventory:createVendor', data),
@@ -234,6 +238,14 @@ declare global {
         departmentVariance: Array<{ label: string; manual: number; commander: number; variance: number }>;
         shiftSnapshots: Record<string, unknown>[];
       }>;
+      transactionsImportDaily:   (dateIso: string) => Promise<{ success: boolean; result: {
+        periodFilename: string; ticketCount: number; imported: number; alreadyImported: number; voidCount: number;
+      } } | { error: string }>;
+      transactionsListForDate:   (dateIso: string) => Promise<Array<{
+        id: string; pos_txn_id: string; txn_type: string; txn_at: string;
+        subtotal: number; tax_total: number; total: number; source_raw: string | null;
+        items: Array<{ id: string; pos_plu_id: string | null; description: string | null; quantity: number; unit_price: number; ext_price: number; is_fuel: number }>;
+      }>>;
       inventoryListVendors:       () => Promise<unknown[]>;
       inventoryCreateVendor:      (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
       inventoryCreateDelivery:    (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;

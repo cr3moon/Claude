@@ -85,6 +85,26 @@ wired). Department names are resolved best-effort via the Ruby `department` repo
 `vs:deptBase sysid` attribute — the same sysid `vPLUs` reports — falling back to
 `"DEPT {sysid}"` when that report doesn't have a match.
 
+## Full T-Log ticket detail (`vtransset`)
+
+The heaviest and least-verified surface here — a multi-MB envelope with thousands of mixed
+event types per closed daily period, over the same GET `/cgi-bin/CGILink` lane as the Ruby
+report family (`getTlogPeriods` reuses `vreportpdlist`'s period-list parser since
+`vtlogpdlist` shares its `periodInfo` shape). `t-log-parser.ts` parses only `sale`/`network
+sale` events into ticket records (lines, tenders, per-category tax); `void` events are
+counted but not itemized, and `journal`/cashier events are ignored entirely.
+
+Two documented gotchas the parser follows: a ticket's tax fields must be summed only over
+tickets *without* a `preFuel` line (a fuel prepay deposit, not a real sale) — see
+`computeTaxSummary`; and `taxAmt`/`taxNet` are used exactly as written, never sign-flipped.
+
+`backend/services/TransactionSyncService.ts` imports a period's tickets into
+`transactions`/`transaction_items` (idempotent — `pos_txn_id` is Commander's own
+`trUniqueSN`, unique per store), surfaced on a new **Transactions** page (Dashboard sidebar)
+with a per-ticket line-item breakdown. Cross-check imported totals against the Daily
+Reconciliation card (same date, pulled via the separate Ruby `summary`/`department` reports)
+before trusting either source alone.
+
 ## Related
 
 - `docs/integration-notes.md` — the verified fuel price/totals section, and the overall

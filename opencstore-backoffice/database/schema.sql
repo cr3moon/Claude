@@ -531,6 +531,10 @@ CREATE INDEX IF NOT EXISTS idx_plu_items_pos_plu_id   ON plu_items(pos_plu_id);
 CREATE INDEX IF NOT EXISTS idx_scan_codes_barcode      ON scan_codes(barcode);
 CREATE INDEX IF NOT EXISTS idx_transactions_shift      ON transactions(shift_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_at         ON transactions(txn_at);
+-- Lets a Commander T-Log sync (TransactionSyncService) re-run over the same
+-- closed period idempotently: pos_txn_id is Commander's own trUniqueSN,
+-- stable across re-imports, so a conflict here means "already imported."
+CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_pos_txn_unique ON transactions(store_id, pos_txn_id);
 CREATE INDEX IF NOT EXISTS idx_transaction_items_plu   ON transaction_items(plu_item_id);
 CREATE INDEX IF NOT EXISTS idx_shifts_store            ON shifts(store_id);
 CREATE INDEX IF NOT EXISTS idx_item_rec_store_job      ON item_recommendations(store_id, job_run_id);

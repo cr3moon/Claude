@@ -19,6 +19,7 @@ import { TimeClockService } from '../../backend/services/TimeClockService';
 import { StoreAccessService } from '../../backend/services/StoreAccessService';
 import { UserManagementService } from '../../backend/services/UserManagementService';
 import { ReconciliationService } from '../../backend/services/ReconciliationService';
+import { TransactionSyncService } from '../../backend/services/TransactionSyncService';
 import { DailySalesService } from '../../backend/services/DailySalesService';
 import { FuelSnapshotService } from '../../backend/services/FuelSnapshotService';
 import { AuditLogger } from '../../audit/AuditLogger';
@@ -55,6 +56,7 @@ const timeClockSvc = new TimeClockService(dbService, auditLogger);
 const storeAccessSvc = new StoreAccessService(dbService, auditLogger);
 const userMgmtSvc = new UserManagementService(dbService, auditLogger);
 const reconciliationSvc = new ReconciliationService(dbService, auditLogger);
+const transactionSyncSvc = new TransactionSyncService(dbService, auditLogger);
 const dailySalesSvc = new DailySalesService(dbService, auditLogger);
 const fuelSnapshotSvc = new FuelSnapshotService(dbService, auditLogger);
 const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc, timeClockSvc);
@@ -646,6 +648,27 @@ ipcMain.handle('reconciliation:captureShiftReports', async (_e, { dateIso }: { d
 ipcMain.handle('reconciliation:getDailyReconciliation', (_e, { dateIso }: { dateIso: string }) => {
   if (!activeStoreId) return { hasCommanderData: false, dailySnapshot: null, departmentVariance: [], shiftSnapshots: [] };
   return reconciliationSvc.getDailyReconciliation(activeStoreId, dateIso);
+});
+
+// ── Commander T-Log sync (live POS transaction feed) ─────────────────────────
+// Needs the live commanderClient, same reason as fuelSnapshot/reconciliation above.
+
+ipcMain.handle('transactions:importDaily', async (_e, { dateIso }: { dateIso: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  if (!commanderClient) return { error: 'Not connected to Commander. Test the connection first.' };
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await transactionSyncSvc.importDailyTransactions(commanderClient, activeStoreId, activeUserId, dateIso, today);
+    if (!result) return { error: `No Commander DAILY T-Log period found for ${dateIso} yet.` };
+    return { success: true, result };
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('transactions:listForDate', (_e, { dateIso }: { dateIso: string }) => {
+  if (!activeStoreId) return [];
+  return transactionSyncSvc.listTransactionsForDate(activeStoreId, dateIso);
 });
 
 // ── Settings ─────────────────────────────────────────────────────────────────

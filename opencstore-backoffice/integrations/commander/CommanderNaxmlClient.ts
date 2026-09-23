@@ -39,6 +39,7 @@ import {
   type RubyTaxReport, type RubySummaryReport, type RubyDepartmentReport, type RubyNetworkReport,
 } from './ruby-report-parser';
 import { buildPluSelectXml, parsePluSelectResponse, type CommanderPluRecord, type PluPage } from './plu-parser';
+import { parseTransSet, type TransSetSummary } from './t-log-parser';
 
 export interface CommanderConfig {
   host: string;
@@ -93,6 +94,7 @@ export type {
 } from './ruby-report-parser';
 
 export type { CommanderPluRecord, PluPage } from './plu-parser';
+export type { TransSetSummary, TicketRecord, TicketLine, TicketTender, TaxCategoryAmount, PeriodTotals } from './t-log-parser';
 
 /** A price change staged for a single grade. Written to Tier 2 (Pending) only. */
 export interface StagedGradePrice {
@@ -474,6 +476,31 @@ export class CommanderNaxmlClient {
       case 'department': return parseRubyDepartment(xml);
       case 'network':    return parseRubyNetwork(xml);
     }
+  }
+
+  // ─── T-Log (read) — see t-log-parser.ts's doc comment ──────────────────
+  //
+  // Same GET /cgi-bin/CGILink lane as the Ruby report family above.
+  // `vtlogpdlist` shares the exact periodInfo shape `vreportpdlist` uses
+  // (see ruby-report-parser.ts's parsePeriodList) — reused here rather
+  // than duplicated. This is the least-verified surface in this client;
+  // see t-log-parser.ts's doc comment before trusting any derived number.
+
+  /** SHIFT/DAILY periods for the T-Log (`vtlogpdlist`). Use `filename`/`period` from here in getTransactionSet(). */
+  async getTlogPeriods(): Promise<CommanderReportPeriod[]> {
+    const xml = await this.cgiLink('vtlogpdlist');
+    return parsePeriodList(xml);
+  }
+
+  /**
+   * The full closed daily/shift transaction set for one period — every
+   * sale/network-sale ticket, with lines and tenders. Multi-MB on a busy
+   * store's DAILY period; expect this to take longer than the other
+   * Commander calls in this client.
+   */
+  async getTransactionSet(filename: string, period: string | number): Promise<TransSetSummary> {
+    const xml = await this.cgiLink('vtransset', { filename, period });
+    return parseTransSet(xml);
   }
 
   // ─── Fuel prices (write) — EXPERIMENTAL, see reference §13.3 ────────────

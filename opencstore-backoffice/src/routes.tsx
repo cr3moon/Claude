@@ -7,6 +7,7 @@ import { useAuth } from './modules/auth/AuthContext';
 const DashboardPage   = lazy(() => import('./pages/DashboardPage'));
 const OnboardingPage  = lazy(() => import('./pages/OnboardingPage'));
 const ImportsPage     = lazy(() => import('./pages/ImportsPage'));
+const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
 const InventoryPage   = lazy(() => import('./pages/InventoryPage'));
 const LotteryPage     = lazy(() => import('./pages/LotteryPage'));
 const TimeClockPage   = lazy(() => import('./pages/TimeClockPage'));
@@ -47,6 +48,7 @@ export default function AppRoutes() {
         >
           <Route index              element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard"  element={<DashboardPage />} />
+          <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/items"      element={<ItemAuditPage />} />
           <Route path="/pricing"    element={<PricingPage />} />
           <Route path="/imports"    element={<ImportsPage />} />

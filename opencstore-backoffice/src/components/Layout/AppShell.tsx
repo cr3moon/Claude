@@ -13,6 +13,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard',  label: 'Dashboard',   icon: '▦'  },
+  { to: '/transactions', label: 'Transactions', icon: '⎘', perm: 'view_reports' },
   { to: '/items',      label: 'Item Audit',  icon: '✓',  perm: 'view_item_audit' },
   { to: '/pricing',    label: 'Pricing',     icon: '$',  perm: 'view_pricing'    },
   { to: '/imports',    label: 'Imports',     icon: '↑',  perm: 'view_imports'    },
