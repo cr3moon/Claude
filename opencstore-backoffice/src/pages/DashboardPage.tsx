@@ -5,6 +5,7 @@ import StatusBadge from '../components/common/StatusBadge';
 import { fmtMoney } from '../lib/currency';
 import { fmtDateTime } from '../lib/date';
 import SalesPerformanceSection from '../components/Dashboard/SalesPerformanceSection';
+import ReconciliationCard from '../components/Dashboard/ReconciliationCard';
 
 interface DashboardMetrics {
   totalSkus:          number;
@@ -119,6 +120,7 @@ export default function DashboardPage() {
       </div>
 
       <SalesPerformanceSection />
+      <ReconciliationCard />
     </>
   );
 }

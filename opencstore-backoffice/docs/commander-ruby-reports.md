@@ -52,6 +52,19 @@ self-signed TLS handling.
 4. Once confirmed, update this note and `integrations/commander/CommanderNaxmlClient.ts`'s
    doc comments to say "verified," matching how the fuel section is described.
 
+## Reconciliation (first consumer)
+
+`backend/services/ReconciliationService.ts` captures a DAILY report (summary + tax +
+department breakdown) and any closed SHIFT reports for a business date into
+`commander_report_snapshots`/`commander_department_report_lines`, then compares them
+against `manual_sales_entries` (by department name, case-insensitive) and surfaces
+`shift_checklists.over_short_amount` next to the matching SHIFT snapshot's tender totals.
+Manual daily sales entry and shift-close checklists are unchanged and remain the primary
+data path — this is a "Pull Commander Report" button (Dashboard → Daily Reconciliation)
+that adds a second source to compare against, not a replacement. See
+`src/modules/reconciliation/reconciliation-rules.ts` for the pure matching/variance logic
+and its tests.
+
 ## Related
 
 - `docs/integration-notes.md` — the verified fuel price/totals section, and the overall

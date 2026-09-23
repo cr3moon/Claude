@@ -960,6 +960,55 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_fuel_snapshot_unique ON fuel_sales_snapsho
 CREATE INDEX IF NOT EXISTS idx_fuel_snapshot_store_date ON fuel_sales_snapshots(store_id, snapshot_date);
 
 -- ============================================================
+-- COMMANDER REPORT RECONCILIATION
+-- ============================================================
+-- A captured Ruby period report (see integrations/commander/ruby-report-parser.ts
+-- and docs/commander-ruby-reports.md) pulled directly from Commander for a
+-- SHIFT or DAILY period, so the manually-entered figures above
+-- (manual_sales_entries, shift_checklists.over_short_amount) can be
+-- compared against what the register itself reported for the same
+-- period, rather than only against each other. One row per Commander
+-- period (period_filename is already unique per period on its own; the
+-- store_id pairing just scopes it defensively). Department-level detail
+-- (commander_department_report_lines) is only captured for DAILY periods
+-- — the DAILY comparison against manual_sales_entries is the primary use;
+-- SHIFT rows exist mainly for their tender totals, compared informally
+-- against a shift's over_short_amount.
+
+CREATE TABLE IF NOT EXISTS commander_report_snapshots (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  period_type     INTEGER NOT NULL,   -- 1 = SHIFT, 2 = DAILY (matches Commander's vs:period sysid)
+  report_date     TEXT NOT NULL,      -- business date this period falls on, 'YYYY-MM-DD'
+  period_filename TEXT NOT NULL,      -- Commander's own period id, e.g. '2026-07-17.312' or 'current'
+  period_value    TEXT NOT NULL,      -- the 'period' report parameter, e.g. '2'
+  fuel_sales          REAL NOT NULL DEFAULT 0,  -- Ruby summary fuelSales — the correct "Gas" KPI
+  outside_sales_delta REAL,                     -- secondary; for cross-checking against fuel_sales only
+  high_tax_taxable REAL NOT NULL DEFAULT 0,
+  high_tax_net     REAL NOT NULL DEFAULT 0,
+  low_tax_taxable  REAL NOT NULL DEFAULT 0,
+  low_tax_net      REAL NOT NULL DEFAULT 0,
+  cash_tender      REAL NOT NULL DEFAULT 0,
+  credit_tender    REAL NOT NULL DEFAULT 0,
+  debit_tender     REAL NOT NULL DEFAULT 0,
+  captured_by     TEXT NOT NULL REFERENCES users(id),
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commander_snapshot_unique ON commander_report_snapshots(store_id, period_filename);
+CREATE INDEX IF NOT EXISTS idx_commander_snapshot_date ON commander_report_snapshots(store_id, report_date, period_type);
+
+CREATE TABLE IF NOT EXISTS commander_department_report_lines (
+  id              TEXT PRIMARY KEY,
+  snapshot_id     TEXT NOT NULL REFERENCES commander_report_snapshots(id) ON DELETE CASCADE,
+  department_name TEXT NOT NULL,   -- Commander's own display name; matched to our departments by name, best-effort
+  net_sales       REAL NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_commander_dept_lines_snapshot ON commander_department_report_lines(snapshot_id);
+
+-- ============================================================
 -- SUPPLEMENTAL INDEXES
 -- ============================================================
 

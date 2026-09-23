@@ -73,6 +73,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dailySalesGetDailyTotals:     (data: unknown)           => invoke('dailySales:getDailyTotals', data),
   dailySalesGetPeriodTotal:     (data: unknown)           => invoke('dailySales:getPeriodTotal', data),
 
+  // ── Commander report reconciliation ──────────────────────────────────────
+  reconciliationCaptureDailyReport:  (dateIso: string)     => invoke('reconciliation:captureDailyReport', { dateIso }),
+  reconciliationCaptureShiftReports: (dateIso: string)     => invoke('reconciliation:captureShiftReports', { dateIso }),
+  reconciliationGetDailyReconciliation: (dateIso: string)  => invoke('reconciliation:getDailyReconciliation', { dateIso }),
+
   // ── Inventory ─────────────────────────────────────────────────────────────
   inventoryListVendors:       ()                          => invoke('inventory:listVendors'),
   inventoryCreateVendor:      (data: unknown)              => invoke('inventory:createVendor', data),
@@ -220,6 +225,14 @@ declare global {
       dailySalesGetDepartmentTotals: (data: unknown) => Promise<Array<{ category: string; value: number }>>;
       dailySalesGetDailyTotals:     (data: unknown) => Promise<Array<{ date: string; value: number }>>;
       dailySalesGetPeriodTotal:     (data: unknown) => Promise<number>;
+      reconciliationCaptureDailyReport:  (dateIso: string) => Promise<{ success: boolean; snapshot: unknown } | { error: string }>;
+      reconciliationCaptureShiftReports: (dateIso: string) => Promise<{ success: boolean; snapshots: unknown[] } | { error: string }>;
+      reconciliationGetDailyReconciliation: (dateIso: string) => Promise<{
+        hasCommanderData: boolean;
+        dailySnapshot: Record<string, unknown> | null;
+        departmentVariance: Array<{ label: string; manual: number; commander: number; variance: number }>;
+        shiftSnapshots: Record<string, unknown>[];
+      }>;
       inventoryListVendors:       () => Promise<unknown[]>;
       inventoryCreateVendor:      (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
       inventoryCreateDelivery:    (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;

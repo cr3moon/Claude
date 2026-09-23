@@ -18,6 +18,7 @@ import { LotteryService } from '../../backend/services/LotteryService';
 import { TimeClockService } from '../../backend/services/TimeClockService';
 import { StoreAccessService } from '../../backend/services/StoreAccessService';
 import { UserManagementService } from '../../backend/services/UserManagementService';
+import { ReconciliationService } from '../../backend/services/ReconciliationService';
 import { DailySalesService } from '../../backend/services/DailySalesService';
 import { FuelSnapshotService } from '../../backend/services/FuelSnapshotService';
 import { AuditLogger } from '../../audit/AuditLogger';
@@ -52,6 +53,7 @@ const lotterySvc  = new LotteryService(dbService, auditLogger);
 const timeClockSvc = new TimeClockService(dbService, auditLogger);
 const storeAccessSvc = new StoreAccessService(dbService, auditLogger);
 const userMgmtSvc = new UserManagementService(dbService, auditLogger);
+const reconciliationSvc = new ReconciliationService(dbService, auditLogger);
 const dailySalesSvc = new DailySalesService(dbService, auditLogger);
 const fuelSnapshotSvc = new FuelSnapshotService(dbService, auditLogger);
 const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc, timeClockSvc);
@@ -609,6 +611,40 @@ ipcMain.handle('dailySales:getDailyTotals', (_e, { startDate, endDate }: { start
 ipcMain.handle('dailySales:getPeriodTotal', (_e, { startDate, endDate }: { startDate: string; endDate: string }) => {
   if (!activeStoreId) return 0;
   return dailySalesSvc.getPeriodTotal(activeStoreId, startDate, endDate);
+});
+
+// ── Commander report reconciliation (manual entry vs. pulled report) ────────
+// Needs the live commanderClient, same reason as fuelSnapshot:captureToday
+// above — the capture itself has to happen here.
+
+ipcMain.handle('reconciliation:captureDailyReport', async (_e, { dateIso }: { dateIso: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  if (!commanderClient) return { error: 'Not connected to Commander. Test the connection first.' };
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const snapshot = await reconciliationSvc.captureDailyReport(commanderClient, activeStoreId, activeUserId, dateIso, today);
+    if (!snapshot) return { error: `No Commander DAILY period found for ${dateIso} yet.` };
+    return { success: true, snapshot };
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('reconciliation:captureShiftReports', async (_e, { dateIso }: { dateIso: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  if (!commanderClient) return { error: 'Not connected to Commander. Test the connection first.' };
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const snapshots = await reconciliationSvc.captureShiftReports(commanderClient, activeStoreId, activeUserId, dateIso, today);
+    return { success: true, snapshots };
+  } catch (err) {
+    return { error: err instanceof CommanderFaultError ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('reconciliation:getDailyReconciliation', (_e, { dateIso }: { dateIso: string }) => {
+  if (!activeStoreId) return { hasCommanderData: false, dailySnapshot: null, departmentVariance: [], shiftSnapshots: [] };
+  return reconciliationSvc.getDailyReconciliation(activeStoreId, dateIso);
 });
 
 // ── Settings ─────────────────────────────────────────────────────────────────
