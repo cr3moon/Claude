@@ -65,6 +65,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   lotteryReturnBook:       (bookId: string)               => invoke('lottery:returnBook', bookId),
   lotteryListBooks:        ()                             => invoke('lottery:listBooks'),
 
+  // ── Time Clock ───────────────────────────────────────────────────────────
+  timeClockGetMyStatus:    ()                             => invoke('timeClock:getMyStatus'),
+  timeClockClockIn:        ()                             => invoke('timeClock:clockIn'),
+  timeClockClockOut:       (breakMinutes: number)         => invoke('timeClock:clockOut', breakMinutes),
+  timeClockListMyEntries:  ()                             => invoke('timeClock:listMyEntries'),
+  timeClockListActiveUsers:()                             => invoke('timeClock:listActiveUsers'),
+  timeClockListEntries:    ()                             => invoke('timeClock:listEntries'),
+  timeClockEditEntry:      (data: unknown)                => invoke('timeClock:editEntry', data),
+
   // ── Settings ──────────────────────────────────────────────────────────────
   getSettings:           ()                              => invoke('settings:get'),
   saveSettings:          (data: unknown)                 => invoke('settings:save', data),
@@ -176,6 +185,13 @@ declare global {
       lotteryRecordCount:      (data: unknown) => Promise<{ success: boolean } | { error: string }>;
       lotteryReturnBook:       (bookId: string) => Promise<{ success: boolean } | { error: string }>;
       lotteryListBooks:        () => Promise<unknown[]>;
+      timeClockGetMyStatus:    () => Promise<unknown | null>;
+      timeClockClockIn:        () => Promise<{ success: boolean } | { error: string }>;
+      timeClockClockOut:       (breakMinutes: number) => Promise<{ success: boolean } | { error: string }>;
+      timeClockListMyEntries:  () => Promise<unknown[]>;
+      timeClockListActiveUsers:() => Promise<unknown[]>;
+      timeClockListEntries:    () => Promise<unknown[]>;
+      timeClockEditEntry:      (data: unknown) => Promise<{ success: boolean } | { error: string }>;
       getSettings:           () => Promise<Record<string, string>>;
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;

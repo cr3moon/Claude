@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
   display_name    TEXT NOT NULL,
   role            TEXT NOT NULL CHECK(role IN ('owner','manager','cashier')),
   is_active       INTEGER NOT NULL DEFAULT 1,
+  hourly_wage     REAL,            -- optional, for payroll cost estimates; never required
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL
 );
@@ -861,6 +862,37 @@ CREATE INDEX IF NOT EXISTS idx_lottery_counts_book ON lottery_counts(book_id, co
 CREATE INDEX IF NOT EXISTS idx_lottery_counts_store ON lottery_counts(store_id, counted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_lottery_books_store ON lottery_books(store_id, status);
 CREATE INDEX IF NOT EXISTS idx_lottery_games_store ON lottery_games(store_id);
+
+-- ============================================================
+-- TIME CLOCK
+-- ============================================================
+
+-- One row per clock-in/clock-out pair. clock_out is NULL while the
+-- employee is still clocked in. break_minutes is a single unpaid-break
+-- deduction entered at clock-out (covers the common case without modeling
+-- individual break start/end events). edited_* is set only when a manager
+-- corrects an entry (e.g. someone forgot to clock out) — kept alongside
+-- the original clock_in/out rather than as a separate log, since a time
+-- entry has exactly one current value at a time, unlike price history.
+CREATE TABLE IF NOT EXISTS time_clock_entries (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  user_id         TEXT NOT NULL REFERENCES users(id),
+  clock_in        TEXT NOT NULL,
+  clock_out       TEXT,
+  break_minutes   INTEGER NOT NULL DEFAULT 0,
+  edited_by       TEXT REFERENCES users(id),
+  edited_at       TEXT,
+  edit_reason     TEXT,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_time_clock_user ON time_clock_entries(user_id, clock_in DESC);
+CREATE INDEX IF NOT EXISTS idx_time_clock_store ON time_clock_entries(store_id, clock_in DESC);
+-- At most one open (clock_out IS NULL) entry per employee at a time.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_time_clock_one_open_per_user
+  ON time_clock_entries(user_id) WHERE clock_out IS NULL;
 
 -- ============================================================
 -- SUPPLEMENTAL INDEXES

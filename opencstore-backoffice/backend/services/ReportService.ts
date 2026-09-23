@@ -10,6 +10,7 @@ import type { DatabaseService } from './DatabaseService';
 import type { AuditLogger } from '../../audit/AuditLogger';
 import type { InventoryService } from './InventoryService';
 import type { LotteryService } from './LotteryService';
+import type { TimeClockService } from './TimeClockService';
 
 export type ReportType =
   | 'daily_shift'
@@ -29,7 +30,8 @@ export type ReportType =
   | 'low_margin_items'
   | 'import_job_log'
   | 'inventory_valuation'
-  | 'lottery_sales';
+  | 'lottery_sales'
+  | 'payroll_summary';
 
 export interface ReportParams {
   storeId: string;
@@ -48,7 +50,8 @@ export class ReportService {
     private db: DatabaseService,
     private audit: AuditLogger,
     private inventory: InventoryService,
-    private lottery: LotteryService
+    private lottery: LotteryService,
+    private timeClock: TimeClockService
   ) {}
 
   generate(params: ReportParams): { id: string; data: unknown } {
@@ -73,6 +76,7 @@ export class ReportService {
       case 'import_job_log':       data = this.importJobLog(storeId, start, end); break;
       case 'inventory_valuation':  data = this.inventory.getOnHandLevels(storeId); break;
       case 'lottery_sales':        data = this.lottery.getSalesSummary(storeId, start, end); break;
+      case 'payroll_summary':      data = this.timeClock.getPayrollSummary(storeId, start, end); break;
       case 'daily_shift':
       case 'eod_close':
       default:                    data = this.dailySummary(storeId, start, end); break;

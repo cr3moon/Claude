@@ -77,6 +77,7 @@ export class DatabaseService {
     const migrations: { table: string; column: string; ddl: string }[] = [
       { table: 'plu_items', column: 'on_hand_qty', ddl: 'ALTER TABLE plu_items ADD COLUMN on_hand_qty REAL NOT NULL DEFAULT 0' },
       { table: 'plu_items', column: 'reorder_point', ddl: 'ALTER TABLE plu_items ADD COLUMN reorder_point REAL' },
+      { table: 'users', column: 'hourly_wage', ddl: 'ALTER TABLE users ADD COLUMN hourly_wage REAL' },
     ];
     for (const m of migrations) {
       const columns = this.db!.prepare(`PRAGMA table_info(${m.table})`).all() as { name: string }[];

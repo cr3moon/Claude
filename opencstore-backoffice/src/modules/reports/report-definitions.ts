@@ -24,6 +24,7 @@ export type ReportType =
   | 'import_job_log'
   | 'inventory_valuation'
   | 'lottery_sales'
+  | 'payroll_summary'
   | 'weekly_summary'
   | 'monthly_summary'
   | 'yearly_summary';
@@ -258,6 +259,16 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { key: 'game_name',    label: 'Game',          format: 'text' },
       { key: 'tickets_sold', label: 'Tickets Sold',  format: 'integer',  align: 'right' },
       { key: 'sales_amount', label: 'Sales $',       format: 'currency', align: 'right' },
+    ],
+  },
+  {
+    id: 'payroll_summary', name: 'Payroll Summary', category: 'operations',
+    description: 'Hours worked and estimated labor cost per employee for the selected period, from clock entries.',
+    supportsShift: false,
+    columns: [
+      { key: 'display_name', label: 'Employee',    format: 'text' },
+      { key: 'hours_worked', label: 'Hours',        format: 'text',     align: 'right' },
+      { key: 'labor_cost',   label: 'Labor Cost',   format: 'currency', align: 'right' },
     ],
   },
   {

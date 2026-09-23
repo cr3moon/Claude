@@ -43,6 +43,8 @@ export type Permission =
   | 'manage_inventory'
   | 'view_lottery'
   | 'manage_lottery'
+  | 'use_time_clock'
+  | 'manage_time_clock'
   | 'view_operations'
   | 'run_checklists'
   | 'view_audit_log'
@@ -60,6 +62,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_imports', 'run_import',
     'view_inventory', 'manage_inventory',
     'view_lottery', 'manage_lottery',
+    'use_time_clock', 'manage_time_clock',
     'view_operations', 'run_checklists',
     'view_audit_log',
     'view_settings', 'edit_settings', 'manage_users', 'configure_connection',
@@ -72,12 +75,14 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_imports',
     'view_inventory', 'manage_inventory',
     'view_lottery', 'manage_lottery',
+    'use_time_clock', 'manage_time_clock',
     'view_operations', 'run_checklists',
     'view_audit_log',
     'view_settings',
   ],
   cashier: [
     'view_dashboard',
+    'use_time_clock',
     'view_operations', 'run_checklists',
   ],
 };

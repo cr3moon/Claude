@@ -15,6 +15,7 @@ import { PricingService } from '../../backend/services/PricingService';
 import { ReportService } from '../../backend/services/ReportService';
 import { InventoryService } from '../../backend/services/InventoryService';
 import { LotteryService } from '../../backend/services/LotteryService';
+import { TimeClockService } from '../../backend/services/TimeClockService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
 import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
@@ -44,7 +45,8 @@ const itemAuditSvc = new ItemAuditService(dbService, auditLogger);
 const pricingSvc  = new PricingService(dbService, auditLogger);
 const inventorySvc = new InventoryService(dbService, auditLogger);
 const lotterySvc  = new LotteryService(dbService, auditLogger);
-const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc);
+const timeClockSvc = new TimeClockService(dbService, auditLogger);
+const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc, timeClockSvc);
 
 // Active session state (lightweight, no persistence needed for MVP)
 let activeUserId: string | null = null;
@@ -731,6 +733,58 @@ ipcMain.handle('lottery:returnBook', (_e, bookId: string) => {
 ipcMain.handle('lottery:listBooks', () => {
   if (!activeStoreId) return [];
   return lotterySvc.listBooks(activeStoreId);
+});
+
+// ── Time Clock ──────────────────────────────────────────────────────────────────
+
+ipcMain.handle('timeClock:getMyStatus', () => {
+  if (!activeUserId) return null;
+  return timeClockSvc.getOpenEntry(activeUserId);
+});
+
+ipcMain.handle('timeClock:clockIn', () => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    timeClockSvc.clockIn(activeStoreId, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('timeClock:clockOut', (_e, breakMinutes: number) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    timeClockSvc.clockOut(activeStoreId, activeUserId, breakMinutes);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('timeClock:listMyEntries', () => {
+  if (!activeStoreId || !activeUserId) return [];
+  return timeClockSvc.listEntries(activeStoreId, activeUserId);
+});
+
+ipcMain.handle('timeClock:listActiveUsers', () => {
+  if (!activeStoreId) return [];
+  return timeClockSvc.listActiveUsers(activeStoreId);
+});
+
+ipcMain.handle('timeClock:listEntries', () => {
+  if (!activeStoreId) return [];
+  return timeClockSvc.listEntries(activeStoreId);
+});
+
+ipcMain.handle('timeClock:editEntry', (_e, data: { entryId: string; clockIn: string; clockOut: string; breakMinutes: number; reason: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    timeClockSvc.editEntry(data.entryId, activeStoreId, activeUserId, data.clockIn, data.clockOut, data.breakMinutes, data.reason);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 });
 
 // ── Reports ───────────────────────────────────────────────────────────────────
