@@ -20,10 +20,21 @@
  * password is held only in memory for the lifetime of this client
  * instance — it is never written to disk (see connection_settings, which
  * stores host/port/username only).
+ *
+ * The Ruby period-report methods near the bottom of this file (SHIFT/DAILY
+ * report periods and `vrubyrept`) are a separate addition sourced from a
+ * *different* second-hand reference — see docs/commander-ruby-reports.md —
+ * and are explicitly flagged there as unverified against a real unit from
+ * this store, unlike the fuel methods above.
  */
 
 import * as https from 'https';
 import { XMLParser } from 'fast-xml-parser';
+import {
+  parsePeriodList, parseRubyTax, parseRubySummary, parseRubyDepartment, parseRubyNetwork,
+  type CommanderReportPeriod, type RubyReportName,
+  type RubyTaxReport, type RubySummaryReport, type RubyDepartmentReport, type RubyNetworkReport,
+} from './ruby-report-parser';
 
 export interface CommanderConfig {
   host: string;
@@ -67,6 +78,15 @@ export interface PumpHoseTotal {
 }
 
 export type FuelTotalsPeriod = 1 | 2 | 3 | 4; // shift | day | month | year
+
+// CommanderReportPeriod, RubyReportName, RubyTaxReport, RubySummaryReport,
+// RubyDepartmentReport, RubyNetworkReport are defined in and imported from
+// ./ruby-report-parser (re-exported below for callers that only import
+// from this file).
+export type {
+  CommanderReportPeriod, RubyReportName,
+  RubyTaxReport, RubySummaryReport, RubyDepartmentReport, RubyNetworkReport,
+} from './ruby-report-parser';
 
 /** A price change staged for a single grade. Written to Tier 2 (Pending) only. */
 export interface StagedGradePrice {
@@ -129,18 +149,20 @@ export class CommanderNaxmlClient {
   }
 
   /**
-   * Send an authenticated NAXML command, logging in first if there is no
-   * token or it's past the stale threshold, and retrying once on a
-   * LoginRequired fault (per the reference's §9 session strategy).
+   * Ensures a fresh session token, sends one request via `send`, and
+   * retries once on a LoginRequired fault (per the reference's §9 session
+   * strategy). Shared by both request lanes below — `naxml()` (POST
+   * /cgi-bin/NAXML, used for fuel prices/totals and PLU reads) and
+   * `cgiLink()` (GET /cgi-bin/CGILink, used for the report family:
+   * `vreportpdlist`/`vrubyrept`/`vtlogpdlist`/`vtransset`). Both endpoints
+   * accept the same session cookie once logged in.
    */
-  private async naxml(cmd: string, params: Record<string, string | number> = {}, xmlBody = ''): Promise<string> {
+  private async withSession(send: (cookie: string) => Promise<string>): Promise<string> {
     for (let attempt = 0; attempt < 2; attempt++) {
       if (!this.token || Date.now() - this.tokenAt > TOKEN_STALE_AFTER_MS) {
         await this.login();
       }
-      const extra = Object.entries(params).map(([k, v]) => `&${k}=${v}`).join('');
-      const body = `cmd=${cmd}&cookie=${this.token}${extra}\n\n${xmlBody}`;
-      const text = await this.post(body);
+      const text = await send(this.token as string);
       const fault = this.extractTag(text, 'faultCode');
       if (fault === 'CGIPortal.LoginRequired' && attempt === 0) {
         this.token = null;
@@ -152,6 +174,30 @@ export class CommanderNaxmlClient {
       return text;
     }
     throw new Error('Commander request failed after re-login.');
+  }
+
+  /** POST /cgi-bin/NAXML — fuel prices/totals, pump maintenance, PLU reads. */
+  private naxml(cmd: string, params: Record<string, string | number> = {}, xmlBody = ''): Promise<string> {
+    return this.withSession((cookie) => {
+      const extra = Object.entries(params).map(([k, v]) => `&${k}=${v}`).join('');
+      const body = `cmd=${cmd}&cookie=${cookie}${extra}\n\n${xmlBody}`;
+      return this.post(body);
+    });
+  }
+
+  /**
+   * GET /cgi-bin/CGILink — the report family (`vreportpdlist`, `vrubyrept`,
+   * `vtlogpdlist`, `vtransset`). Documented as a GET-to-CGILink surface
+   * distinct from the POST-to-NAXML surface the rest of this client uses;
+   * observed second-hand (see class doc) rather than against our own unit.
+   */
+  private cgiLink(cmd: string, params: Record<string, string | number> = {}): Promise<string> {
+    return this.withSession((cookie) => {
+      const qs = Object.entries({ ...params, cookie })
+        .map(([k, v]) => `&${k}=${encodeURIComponent(String(v))}`)
+        .join('');
+      return this.get(`/cgi-bin/CGILink?cmd=${cmd}${qs}`);
+    });
   }
 
   private post(body: string): Promise<string> {
@@ -178,6 +224,29 @@ export class CommanderNaxmlClient {
       req.on('timeout', () => req.destroy(new Error('Commander request timed out.')));
       req.on('error', reject);
       req.write(body);
+      req.end();
+    });
+  }
+
+  private get(path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          host: this.config.host,
+          port: this.config.port ?? 443,
+          path,
+          method: 'GET',
+          rejectUnauthorized: false,
+          timeout: this.config.timeoutMs ?? 10_000,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+        }
+      );
+      req.on('timeout', () => req.destroy(new Error('Commander request timed out.')));
+      req.on('error', reject);
       req.end();
     });
   }
@@ -314,6 +383,47 @@ export class CommanderNaxmlClient {
       }
     }
     return out;
+  }
+
+  // ─── Ruby period reports (read) — see docs/commander-ruby-reports.md ───
+  //
+  // Unlike the fuel endpoints above (verified against a real production
+  // unit), this section is built from a *second-hand* reverse-engineering
+  // reference (a different store's Commander unit, documented in a sibling
+  // project — see docs/commander-ruby-reports.md). The GET /cgi-bin/CGILink
+  // surface, command names, and response shape are documented there with
+  // real sample values, but the exact attribute/element nesting can vary
+  // by firmware version. Parsing (in ruby-report-parser.ts) is deliberately
+  // tolerant and MUST be confirmed against this store's own unit before
+  // any number it returns is trusted for accounting purposes.
+
+  /** SHIFT/DAILY periods for Ruby reports (`vrubyrept`). Use `filename`/`period` from here, not raw dates. */
+  async getReportPeriods(): Promise<CommanderReportPeriod[]> {
+    const xml = await this.cgiLink('vreportpdlist');
+    return parsePeriodList(xml);
+  }
+
+  /**
+   * A Ruby back-office period report (Tax / Summary / Department / Network).
+   * `filename`/`period` come from `getReportPeriods()` — e.g. `current`/`2`
+   * for the still-open current daily, or a closed period's own values.
+   */
+  async getRubyReport(reptname: 'tax', filename: string, period: string | number): Promise<RubyTaxReport>;
+  async getRubyReport(reptname: 'summary', filename: string, period: string | number): Promise<RubySummaryReport>;
+  async getRubyReport(reptname: 'department', filename: string, period: string | number): Promise<RubyDepartmentReport>;
+  async getRubyReport(reptname: 'network', filename: string, period: string | number): Promise<RubyNetworkReport>;
+  async getRubyReport(
+    reptname: RubyReportName,
+    filename: string,
+    period: string | number
+  ): Promise<RubyTaxReport | RubySummaryReport | RubyDepartmentReport | RubyNetworkReport> {
+    const xml = await this.cgiLink('vrubyrept', { reptname, filename, period });
+    switch (reptname) {
+      case 'tax':        return parseRubyTax(xml);
+      case 'summary':    return parseRubySummary(xml);
+      case 'department': return parseRubyDepartment(xml);
+      case 'network':    return parseRubyNetwork(xml);
+    }
   }
 
   // ─── Fuel prices (write) — EXPERIMENTAL, see reference §13.3 ────────────
