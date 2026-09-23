@@ -159,6 +159,8 @@ CREATE TABLE IF NOT EXISTS plu_items (
   cost            REAL,
   retail_price    REAL,
   sale_price      REAL,
+  on_hand_qty     REAL NOT NULL DEFAULT 0,  -- units, kept current by deliveries + inventory_adjustments
+  reorder_point   REAL,                     -- below this qty, item shows as low-stock; NULL = no threshold set
   mix_match_group TEXT,
   loyalty_eligible INTEGER NOT NULL DEFAULT 0,
   vendor_code     TEXT,
@@ -732,6 +734,75 @@ CREATE TABLE IF NOT EXISTS rollback_records (
   notes                TEXT,
   created_at           TEXT NOT NULL
 );
+
+-- ============================================================
+-- INVENTORY & RECEIVING
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS vendors (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  name            TEXT NOT NULL,
+  contact_name    TEXT,
+  phone           TEXT,
+  email           TEXT,
+  account_number  TEXT,           -- this vendor's account/customer number for the store, not a secret
+  notes           TEXT,
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+-- A single delivery/invoice from a vendor. Draft while being entered;
+-- receiving it (status='received') is the only thing that moves
+-- on_hand_qty and writes cost history — matches the rest of the app's
+-- pattern of an explicit, auditable commit step rather than live-editing
+-- on_hand_qty directly.
+CREATE TABLE IF NOT EXISTS deliveries (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  vendor_id       TEXT NOT NULL REFERENCES vendors(id),
+  invoice_number  TEXT,
+  status          TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'received' | 'voided'
+  notes           TEXT,
+  created_by      TEXT NOT NULL REFERENCES users(id),
+  received_by     TEXT REFERENCES users(id),
+  received_at     TEXT,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS delivery_lines (
+  id              TEXT PRIMARY KEY,
+  delivery_id     TEXT NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+  plu_item_id     TEXT NOT NULL REFERENCES plu_items(id),
+  qty             REAL NOT NULL,
+  unit_cost       REAL NOT NULL,
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_lines_delivery ON delivery_lines(delivery_id);
+
+-- Manual on-hand corrections: physical counts, shrink, waste, damage.
+-- Each row is a delta (positive or negative) applied to plu_items.on_hand_qty,
+-- kept as a permanent log rather than overwriting on_hand_qty in place so
+-- shrink/waste can be reported on later (mirrors price_change_history's
+-- append-only pattern for pricing).
+CREATE TABLE IF NOT EXISTS inventory_adjustments (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  plu_item_id     TEXT NOT NULL REFERENCES plu_items(id),
+  qty_delta       REAL NOT NULL,   -- positive = found/added, negative = shrink/waste/damage
+  reason_code     TEXT NOT NULL,   -- 'physical_count' | 'shrink' | 'waste' | 'damage' | 'other'
+  notes           TEXT,
+  created_by      TEXT NOT NULL REFERENCES users(id),
+  created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_item ON inventory_adjustments(plu_item_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_store ON inventory_adjustments(store_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deliveries_store ON deliveries(store_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vendors_store ON vendors(store_id);
 
 -- ============================================================
 -- SUPPLEMENTAL INDEXES

@@ -22,6 +22,7 @@ export type ReportType =
   | 'over_short'
   | 'low_margin_items'
   | 'import_job_log'
+  | 'inventory_valuation'
   | 'weekly_summary'
   | 'monthly_summary'
   | 'yearly_summary';
@@ -231,6 +232,20 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { key: 'records_error',   label: 'Errors',        format: 'integer', align: 'right' },
       { key: 'status',          label: 'Status',        format: 'text' },
       { key: 'triggered_by',    label: 'Triggered By',  format: 'text' },
+    ],
+  },
+  {
+    id: 'inventory_valuation', name: 'Inventory Valuation', category: 'operations',
+    description: 'On-hand quantity and extended value for every active item, with low-stock flags.',
+    supportsShift: false,
+    columns: [
+      { key: 'pos_plu_id',     label: 'PLU',          format: 'text' },
+      { key: 'description',    label: 'Description',  format: 'text' },
+      { key: 'dept_name',      label: 'Dept',          format: 'text' },
+      { key: 'on_hand_qty',    label: 'On Hand',       format: 'integer',  align: 'right' },
+      { key: 'cost',           label: 'Cost',          format: 'currency', align: 'right' },
+      { key: 'extended_value', label: 'Ext. Value',    format: 'currency', align: 'right' },
+      { key: 'low_stock',      label: 'Low Stock',     format: 'text' },
     ],
   },
   {

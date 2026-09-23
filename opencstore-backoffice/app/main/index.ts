@@ -13,6 +13,7 @@ import { ImportService } from '../../backend/services/ImportService';
 import { ItemAuditService } from '../../backend/services/ItemAuditService';
 import { PricingService } from '../../backend/services/PricingService';
 import { ReportService } from '../../backend/services/ReportService';
+import { InventoryService } from '../../backend/services/InventoryService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
 import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
@@ -40,7 +41,8 @@ const auditLogger = new AuditLogger(dbService);
 const importSvc   = new ImportService(dbService, auditLogger);
 const itemAuditSvc = new ItemAuditService(dbService, auditLogger);
 const pricingSvc  = new PricingService(dbService, auditLogger);
-const reportSvc   = new ReportService(dbService, auditLogger);
+const inventorySvc = new InventoryService(dbService, auditLogger);
+const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc);
 
 // Active session state (lightweight, no persistence needed for MVP)
 let activeUserId: string | null = null;
@@ -586,6 +588,85 @@ ipcMain.handle('pricing:exportApproved', () => {
   fs.writeFileSync(exportPath, JSON.stringify({ batchId, changes }, null, 2));
 
   return { success: true, exportPath, count: (changes as unknown[]).length };
+});
+
+// ── Inventory (vendors, receiving, on-hand tracking) ──────────────────────────
+
+ipcMain.handle('inventory:listVendors', () => {
+  if (!activeStoreId) return [];
+  return inventorySvc.listVendors(activeStoreId);
+});
+
+ipcMain.handle('inventory:createVendor', (_e, data: Parameters<typeof inventorySvc.createVendor>[2]) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    const id = inventorySvc.createVendor(activeStoreId, activeUserId, data);
+    return { success: true, id };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('inventory:createDelivery', (_e, { vendorId, invoiceNumber, notes }: { vendorId: string; invoiceNumber?: string; notes?: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    const id = inventorySvc.createDelivery(activeStoreId, activeUserId, vendorId, invoiceNumber, notes);
+    return { success: true, id };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('inventory:addDeliveryLine', (_e, { deliveryId, line }: { deliveryId: string; line: Parameters<typeof inventorySvc.addDeliveryLine>[2] }) => {
+  if (!activeStoreId) return { error: 'Not authenticated' };
+  try {
+    inventorySvc.addDeliveryLine(deliveryId, activeStoreId, line);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('inventory:getDelivery', (_e, deliveryId: string) => {
+  if (!activeStoreId) return null;
+  return inventorySvc.getDelivery(deliveryId, activeStoreId);
+});
+
+ipcMain.handle('inventory:listDeliveries', () => {
+  if (!activeStoreId) return [];
+  return inventorySvc.listDeliveries(activeStoreId);
+});
+
+ipcMain.handle('inventory:receiveDelivery', (_e, deliveryId: string) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    inventorySvc.receiveDelivery(deliveryId, activeStoreId, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('inventory:createAdjustment', (_e, { pluItemId, qtyDelta, reasonCode, notes }: {
+  pluItemId: string; qtyDelta: number; reasonCode: Parameters<typeof inventorySvc.createAdjustment>[4]; notes?: string;
+}) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    inventorySvc.createAdjustment(activeStoreId, activeUserId, pluItemId, qtyDelta, reasonCode, notes);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('inventory:getOnHandLevels', () => {
+  if (!activeStoreId) return [];
+  return inventorySvc.getOnHandLevels(activeStoreId);
+});
+
+ipcMain.handle('inventory:getValuation', () => {
+  if (!activeStoreId) return { totalValue: 0, itemCount: 0, lowStockCount: 0 };
+  return inventorySvc.getInventoryValuation(activeStoreId);
 });
 
 // ── Reports ───────────────────────────────────────────────────────────────────

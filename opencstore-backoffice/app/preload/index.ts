@@ -44,6 +44,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commanderGetVisibleGrades: ()                          => invoke('commander:getVisibleGrades'),
   commanderSetVisibleGrades: (grades: string[])          => invoke('commander:setVisibleGrades', grades),
 
+  // ── Inventory ─────────────────────────────────────────────────────────────
+  inventoryListVendors:       ()                          => invoke('inventory:listVendors'),
+  inventoryCreateVendor:      (data: unknown)              => invoke('inventory:createVendor', data),
+  inventoryCreateDelivery:    (data: unknown)              => invoke('inventory:createDelivery', data),
+  inventoryAddDeliveryLine:   (data: unknown)              => invoke('inventory:addDeliveryLine', data),
+  inventoryGetDelivery:       (deliveryId: string)         => invoke('inventory:getDelivery', deliveryId),
+  inventoryListDeliveries:    ()                          => invoke('inventory:listDeliveries'),
+  inventoryReceiveDelivery:   (deliveryId: string)         => invoke('inventory:receiveDelivery', deliveryId),
+  inventoryCreateAdjustment:  (data: unknown)              => invoke('inventory:createAdjustment', data),
+  inventoryGetOnHandLevels:   ()                          => invoke('inventory:getOnHandLevels'),
+  inventoryGetValuation:      ()                          => invoke('inventory:getValuation'),
+
   // ── Settings ──────────────────────────────────────────────────────────────
   getSettings:           ()                              => invoke('settings:get'),
   saveSettings:          (data: unknown)                 => invoke('settings:save', data),
@@ -138,13 +150,23 @@ declare global {
       }>>;
       commanderGetVisibleGrades: () => Promise<string[] | null>;
       commanderSetVisibleGrades: (grades: string[]) => Promise<{ success: boolean }>;
+      inventoryListVendors:       () => Promise<unknown[]>;
+      inventoryCreateVendor:      (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
+      inventoryCreateDelivery:    (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
+      inventoryAddDeliveryLine:   (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      inventoryGetDelivery:       (deliveryId: string) => Promise<{ delivery: unknown; lines: unknown[] } | null>;
+      inventoryListDeliveries:    () => Promise<unknown[]>;
+      inventoryReceiveDelivery:   (deliveryId: string) => Promise<{ success: boolean } | { error: string }>;
+      inventoryCreateAdjustment:  (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      inventoryGetOnHandLevels:   () => Promise<unknown[]>;
+      inventoryGetValuation:      () => Promise<{ totalValue: number; itemCount: number; lowStockCount: number }>;
       getSettings:           () => Promise<Record<string, string>>;
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;
       importFromFile:        (filePath: string, format: string) => Promise<unknown>;
       getImportHistory:      () => Promise<unknown[]>;
       openFileDialog:        () => Promise<{ canceled: boolean; filePaths: string[] }>;
-      getItems:              (opts: unknown) => Promise<unknown[]>;
+      getItems:              (opts: unknown) => Promise<{ items: Array<{ id: string; pos_plu_id: string; description: string }>; total: number }>;
       getDepartments:        () => Promise<unknown[]>;
       getCategories:         () => Promise<unknown[]>;
       runItemAudit:          () => Promise<unknown>;
