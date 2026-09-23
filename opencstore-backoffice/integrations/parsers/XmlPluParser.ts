@@ -65,10 +65,10 @@ export class XmlPluParser {
 
     return depts.map((d: Record<string, unknown>) => ({
       pos_dept_id:   String(d['@_id'] ?? d['ID'] ?? d['DeptNumber'] ?? d['Number'] ?? ''),
-      name:          String(d['Name'] ?? d['Description'] ?? d['DeptName'] ?? '').toUpperCase().trim(),
-      tax_flag:      this.parseBool(d['Taxable'] ?? d['Tax'] ?? d['TaxFlag'] ?? false),
-      age_restricted:this.parseBool(d['AgeRestricted'] ?? d['AgeVerify'] ?? d['Age21'] ?? false),
-      is_fuel:       this.parseBool(d['IsFuel'] ?? d['Fuel'] ?? false),
+      name:          String(d['@_Name'] ?? d['Name'] ?? d['Description'] ?? d['DeptName'] ?? '').toUpperCase().trim(),
+      tax_flag:      this.parseBool(d['@_Taxable'] ?? d['Taxable'] ?? d['Tax'] ?? d['TaxFlag'] ?? false),
+      age_restricted:this.parseBool(d['@_AgeRestricted'] ?? d['AgeRestricted'] ?? d['AgeVerify'] ?? d['Age21'] ?? false),
+      is_fuel:       this.parseBool(d['@_IsFuel'] ?? d['IsFuel'] ?? d['Fuel'] ?? false),
       raw: d,
     }));
   }
@@ -84,7 +84,7 @@ export class XmlPluParser {
     return cats.map((c: Record<string, unknown>) => ({
       pos_category_id: String(c['@_id'] ?? c['ID'] ?? c['CatNumber'] ?? ''),
       pos_dept_id:     String(c['@_deptId'] ?? c['DeptID'] ?? c['DepartmentID'] ?? c['DeptNumber'] ?? ''),
-      name:            String(c['Name'] ?? c['Description'] ?? '').toUpperCase().trim(),
+      name:            String(c['@_Name'] ?? c['Name'] ?? c['Description'] ?? '').toUpperCase().trim(),
       raw: c,
     }));
   }
@@ -111,10 +111,10 @@ export class XmlPluParser {
         description_short:  String(item['ShortDesc'] ?? item['Abbrev'] ?? item['Abbreviation'] ?? '').trim(),
         department_id:      String(item['@_deptId'] ?? item['DeptID'] ?? item['DepartmentID'] ?? item['Dept'] ?? ''),
         category_id:        String(item['@_catId'] ?? item['CatID'] ?? item['CategoryID'] ?? item['Category'] ?? ''),
-        tax_flag:           this.parseBool(item['Taxable'] ?? item['Tax'] ?? item['TaxFlag'] ?? false),
-        age_restricted:     this.parseBool(item['AgeRestricted'] ?? item['AgeVerify'] ?? item['Age21'] ?? false),
-        foodstamp_eligible: this.parseBool(item['Foodstamp'] ?? item['FoodStamp'] ?? item['EBT'] ?? false),
-        is_fuel:            this.parseBool(item['IsFuel'] ?? item['Fuel'] ?? false),
+        tax_flag:           this.parseBool(item['@_Taxable'] ?? item['Taxable'] ?? item['Tax'] ?? item['TaxFlag'] ?? false),
+        age_restricted:     this.parseBool(item['@_AgeRestricted'] ?? item['AgeRestricted'] ?? item['AgeVerify'] ?? item['Age21'] ?? false),
+        foodstamp_eligible: this.parseBool(item['@_Foodstamp'] ?? item['Foodstamp'] ?? item['FoodStamp'] ?? item['EBT'] ?? false),
+        is_fuel:            this.parseBool(item['@_IsFuel'] ?? item['IsFuel'] ?? item['Fuel'] ?? false),
         unit_descriptor:    String(item['UnitDesc'] ?? item['Unit'] ?? item['UOM'] ?? 'EA').trim().toUpperCase(),
         pack_size:          this.parseNum(item['PackSize'] ?? item['Size'] ?? 1),
         cost:               this.parsePrice(item['Cost'] ?? item['UnitCost']),
