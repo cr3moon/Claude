@@ -51,7 +51,8 @@ export type Permission =
   | 'view_settings'
   | 'edit_settings'
   | 'manage_users'
-  | 'configure_connection';
+  | 'configure_connection'
+  | 'manage_stores';
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   owner: [
@@ -65,7 +66,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'use_time_clock', 'manage_time_clock',
     'view_operations', 'run_checklists',
     'view_audit_log',
-    'view_settings', 'edit_settings', 'manage_users', 'configure_connection',
+    'view_settings', 'edit_settings', 'manage_users', 'configure_connection', 'manage_stores',
   ],
   manager: [
     'view_dashboard',

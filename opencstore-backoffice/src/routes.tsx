@@ -10,6 +10,7 @@ const ImportsPage     = lazy(() => import('./pages/ImportsPage'));
 const InventoryPage   = lazy(() => import('./pages/InventoryPage'));
 const LotteryPage     = lazy(() => import('./pages/LotteryPage'));
 const TimeClockPage   = lazy(() => import('./pages/TimeClockPage'));
+const MultiStoreDashboardPage = lazy(() => import('./pages/MultiStoreDashboardPage'));
 const ItemAuditPage   = lazy(() => import('./pages/ItemAuditPage'));
 const PricingPage     = lazy(() => import('./pages/PricingPage'));
 const ReportsPage     = lazy(() => import('./pages/ReportsPage'));
@@ -52,6 +53,7 @@ export default function AppRoutes() {
           <Route path="/inventory"  element={<InventoryPage />} />
           <Route path="/lottery"    element={<LotteryPage />} />
           <Route path="/time-clock" element={<TimeClockPage />} />
+          <Route path="/multi-store" element={<MultiStoreDashboardPage />} />
           <Route path="/reports"    element={<ReportsPage />} />
           <Route path="/operations" element={<OperationsPage />} />
           <Route path="/audit-log"  element={<AuditLogPage />} />

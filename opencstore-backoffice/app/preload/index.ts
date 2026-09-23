@@ -34,6 +34,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Store ─────────────────────────────────────────────────────────────────
   getStore:              ()                              => invoke('store:get'),
   updateStore:           (data: unknown)                 => invoke('store:update', data),
+  storeListAccessible:   ()                              => invoke('store:listAccessible'),
+  storeCreate:           (data: unknown)                 => invoke('store:create', data),
+  storeSwitchActive:     (storeId: string)               => invoke('store:switchActive', storeId),
+  storeGrantAccess:      (data: unknown)                 => invoke('store:grantAccess', data),
+  storeRevokeAccess:     (data: unknown)                 => invoke('store:revokeAccess', data),
+  storeListAllUsers:     ()                              => invoke('store:listAllUsers'),
+  storeListAccessibleFor: (userId: string)                => invoke('store:listAccessibleFor', userId),
+  storeGetMultiStoreSummary: ()                           => invoke('store:getMultiStoreSummary'),
 
   // ── Commander NAXML connection ───────────────────────────────────────────
   commanderTestConnection: (config: unknown)             => invoke('commander:testConnection', config),
@@ -150,6 +158,14 @@ declare global {
         fuel_tax_rate: number; currency: string; pos_type: string | null;
       } | undefined>;
       updateStore:           (data: unknown) => Promise<{ success: boolean }>;
+      storeListAccessible:   () => Promise<unknown[]>;
+      storeCreate:           (data: unknown) => Promise<{ success: boolean; storeId: string } | { error: string }>;
+      storeSwitchActive:     (storeId: string) => Promise<{ success: boolean; store: unknown } | { error: string }>;
+      storeGrantAccess:      (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      storeRevokeAccess:     (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      storeListAllUsers:     () => Promise<unknown[]>;
+      storeListAccessibleFor: (userId: string) => Promise<unknown[]>;
+      storeGetMultiStoreSummary: () => Promise<unknown[]>;
       commanderTestConnection: (config: unknown) => Promise<{ success: boolean; latencyMs?: number; message: string }>;
       commanderGetConnectionSettings: () => Promise<{
         host: string; port: number; username_hint: string; connection_status: string; last_tested_at: string | null;

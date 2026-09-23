@@ -127,12 +127,25 @@ export class DatabaseService {
   }
 
   // ─── Store ────────────────────────────────────────────────────────────────
+  //
+  // A single install's stores table can hold more than one row (multi-store
+  // operators), so every read/write here takes an explicit storeId rather
+  // than guessing "the" store — there previously was a getStore()/
+  // upsertStore() pair that grabbed row #1 unconditionally, which broke the
+  // moment a second store existed.
 
-  getStore(): Record<string, unknown> | undefined {
-    return this.get('SELECT * FROM stores LIMIT 1');
+  getStore(storeId: string): Record<string, unknown> | undefined {
+    return this.get('SELECT * FROM stores WHERE id=?', [storeId]);
   }
 
-  upsertStore(data: {
+  listStores(storeIds: string[]): Record<string, unknown>[] {
+    if (storeIds.length === 0) return [];
+    const placeholders = storeIds.map(() => '?').join(',');
+    return this.all(`SELECT * FROM stores WHERE id IN (${placeholders}) ORDER BY name`, storeIds);
+  }
+
+  /** Always inserts a new store row — used for the very first store (onboarding) and for adding a location. */
+  createStore(data: {
     name: string;
     address?: string;
     city?: string;
@@ -144,21 +157,8 @@ export class DatabaseService {
     fuel_tax_rate: number;
     pos_type?: string;
   }): string {
-    const existing = this.getStore() as { id: string } | undefined;
-    const now = new Date().toISOString();
-
-    if (existing) {
-      this.run(
-        `UPDATE stores SET name=?, address=?, city=?, state=?, zip=?, phone=?,
-         timezone=?, tax_rate=?, fuel_tax_rate=?, pos_type=?, updated_at=? WHERE id=?`,
-        [data.name, data.address ?? null, data.city ?? null, data.state ?? null,
-         data.zip ?? null, data.phone ?? null, data.timezone, data.tax_rate,
-         data.fuel_tax_rate, data.pos_type ?? null, now, existing.id]
-      );
-      return existing.id;
-    }
-
     const id = uuidv4();
+    const now = new Date().toISOString();
     this.run(
       `INSERT INTO stores(id,name,address,city,state,zip,phone,timezone,tax_rate,fuel_tax_rate,pos_type,created_at,updated_at)
        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -167,6 +167,29 @@ export class DatabaseService {
        data.fuel_tax_rate, data.pos_type ?? null, now, now]
     );
     return id;
+  }
+
+  /** Always updates the given existing store row. */
+  updateStore(storeId: string, data: {
+    name: string;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip?: string | null;
+    phone?: string | null;
+    timezone: string;
+    tax_rate: number;
+    fuel_tax_rate: number;
+    pos_type?: string | null;
+  }): void {
+    const now = new Date().toISOString();
+    this.run(
+      `UPDATE stores SET name=?, address=?, city=?, state=?, zip=?, phone=?,
+       timezone=?, tax_rate=?, fuel_tax_rate=?, pos_type=?, updated_at=? WHERE id=?`,
+      [data.name, data.address ?? null, data.city ?? null, data.state ?? null,
+       data.zip ?? null, data.phone ?? null, data.timezone, data.tax_rate,
+       data.fuel_tax_rate, data.pos_type ?? null, now, storeId]
+    );
   }
 
   // ─── Users ────────────────────────────────────────────────────────────────

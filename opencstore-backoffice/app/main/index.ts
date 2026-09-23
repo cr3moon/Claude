@@ -16,6 +16,7 @@ import { ReportService } from '../../backend/services/ReportService';
 import { InventoryService } from '../../backend/services/InventoryService';
 import { LotteryService } from '../../backend/services/LotteryService';
 import { TimeClockService } from '../../backend/services/TimeClockService';
+import { StoreAccessService } from '../../backend/services/StoreAccessService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
 import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
@@ -46,6 +47,7 @@ const pricingSvc  = new PricingService(dbService, auditLogger);
 const inventorySvc = new InventoryService(dbService, auditLogger);
 const lotterySvc  = new LotteryService(dbService, auditLogger);
 const timeClockSvc = new TimeClockService(dbService, auditLogger);
+const storeAccessSvc = new StoreAccessService(dbService, auditLogger);
 const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc, timeClockSvc);
 
 // Active session state (lightweight, no persistence needed for MVP)
@@ -192,7 +194,7 @@ ipcMain.handle('onboarding:complete', async (_e, payload: {
 }) => {
   const { store, admin } = payload;
 
-  const storeId = dbService.upsertStore(store);
+  const storeId = dbService.createStore(store);
   const passwordHash = await bcrypt.hash(admin.password, 12);
   const userId = dbService.createUser({
     store_id: storeId,
@@ -262,17 +264,20 @@ ipcMain.handle('dashboard:getRecentAuditItems', () => {
 
 // ── Store ────────────────────────────────────────────────────────────────────
 
-ipcMain.handle('store:get', () => dbService.getStore());
+ipcMain.handle('store:get', () => {
+  if (!activeStoreId) return undefined;
+  return dbService.getStore(activeStoreId);
+});
 
 ipcMain.handle('store:update', (_e, data: Partial<{
   name: string; address: string; city: string; state: string; zip: string; phone: string;
   timezone: string; tax_rate: number; fuel_tax_rate: number; pos_type: string;
 }>) => {
-  if (!activeUserId) return { error: 'Not authenticated' };
-  const existing = dbService.getStore();
+  if (!activeUserId || !activeStoreId) return { error: 'Not authenticated' };
+  const existing = dbService.getStore(activeStoreId);
   if (!existing) return { error: 'Store not found' };
 
-  const storeId = dbService.upsertStore({
+  dbService.updateStore(activeStoreId, {
     name:          (data.name ?? existing.name) as string,
     address:       (data.address ?? existing.address) as string | undefined,
     city:          (data.city ?? existing.city) as string | undefined,
@@ -285,11 +290,76 @@ ipcMain.handle('store:update', (_e, data: Partial<{
     pos_type:      (data.pos_type ?? existing.pos_type) as string | undefined,
   });
 
-  auditLogger.log({ storeId, userId: activeUserId,
+  auditLogger.log({ storeId: activeStoreId, userId: activeUserId,
     eventType: 'settings', eventSubtype: 'store_updated',
     description: `Store settings updated: ${Object.keys(data).join(', ')}` });
 
   return { success: true };
+});
+
+// ── Multi-store access ───────────────────────────────────────────────────────
+
+ipcMain.handle('store:listAccessible', () => {
+  if (!activeUserId) return [];
+  return storeAccessSvc.listAccessibleStores(activeUserId);
+});
+
+ipcMain.handle('store:create', (_e, data: Parameters<typeof storeAccessSvc.createStore>[1]) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  try {
+    const storeId = storeAccessSvc.createStore(activeUserId, data);
+    return { success: true, storeId };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('store:switchActive', (_e, storeId: string) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  try {
+    activeStoreId = storeAccessSvc.validateSwitch(activeUserId, storeId);
+    auditLogger.log({ storeId: activeStoreId, userId: activeUserId,
+      eventType: 'store', eventSubtype: 'switched',
+      description: `Switched active store.` });
+    return { success: true, store: dbService.getStore(activeStoreId) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('store:grantAccess', (_e, { userId, storeId }: { userId: string; storeId: string }) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  try {
+    storeAccessSvc.grantAccess(userId, storeId, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('store:revokeAccess', (_e, { userId, storeId }: { userId: string; storeId: string }) => {
+  if (!activeUserId) return { error: 'Not authenticated' };
+  try {
+    storeAccessSvc.revokeAccess(userId, storeId, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('store:listAllUsers', () => {
+  if (!activeUserId) return [];
+  return storeAccessSvc.listAllUsers();
+});
+
+ipcMain.handle('store:listAccessibleFor', (_e, userId: string) => {
+  if (!activeUserId) return [];
+  return storeAccessSvc.listAccessibleStores(userId);
+});
+
+ipcMain.handle('store:getMultiStoreSummary', () => {
+  if (!activeUserId) return [];
+  return storeAccessSvc.getMultiStoreSummary(activeUserId);
 });
 
 // ── Commander NAXML connection ──────────────────────────────────────────────

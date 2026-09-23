@@ -4,6 +4,7 @@ import { useAuth } from '../modules/auth/AuthContext';
 import { can } from '../modules/auth/roles';
 import { StoreService, type StoreUpdate } from '../modules/settings/store.service';
 import CommanderConnectionCard from '../components/Settings/CommanderConnectionCard';
+import LocationsCard from '../components/Settings/LocationsCard';
 
 const EMPTY_FORM: StoreUpdate = {
   name: '', address: '', city: '', state: '', zip: '', phone: '',
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [saved,   setSaved]   = useState(false);
 
   const isOwner = user ? can(user.role, 'edit_settings') : false;
+  const canManageStores = user ? can(user.role, 'manage_stores') : false;
 
   useEffect(() => {
     (async () => {
@@ -129,6 +131,12 @@ export default function SettingsPage() {
           </div>
         )}
       </form>
+
+      {canManageStores && (
+        <div className="mt-6">
+          <LocationsCard />
+        </div>
+      )}
 
       <div className="mt-6">
         <CommanderConnectionCard disabled={!isOwner} />

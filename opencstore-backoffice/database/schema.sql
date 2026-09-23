@@ -864,6 +864,28 @@ CREATE INDEX IF NOT EXISTS idx_lottery_books_store ON lottery_books(store_id, st
 CREATE INDEX IF NOT EXISTS idx_lottery_games_store ON lottery_games(store_id);
 
 -- ============================================================
+-- MULTI-STORE ACCESS
+-- ============================================================
+
+-- A user's home store is users.store_id (set at account creation, always
+-- present). This table grants ADDITIONAL stores to a user — e.g. an owner
+-- who opens a second location keeps their original home store and is
+-- granted access to the new one, rather than every store needing its own
+-- separate login. All stores and users in a single install belong to the
+-- same operator by construction (one desktop app, one local database), so
+-- any store here can be granted to any user here.
+CREATE TABLE IF NOT EXISTS user_store_access (
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT NOT NULL REFERENCES users(id),
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  granted_by      TEXT NOT NULL REFERENCES users(id),
+  created_at      TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_store_access_unique ON user_store_access(user_id, store_id);
+CREATE INDEX IF NOT EXISTS idx_user_store_access_user ON user_store_access(user_id);
+
+-- ============================================================
 -- TIME CLOCK
 -- ============================================================
 

@@ -92,6 +92,7 @@ On first launch, the **Onboarding Wizard** will walk you through:
 | **Inventory** | Track on-hand quantity and value per item; receive deliveries from vendors (updates cost + on-hand); log manual adjustments for shrink, waste, damage, and physical counts |
 | **Lottery** | Track instant ticket games and physical books through their lifecycle (received → active → settled/returned); reconcile sales by recording a ticket count against each active book |
 | **Time Clock** | Every employee clocks themselves in/out with an optional unpaid break; owners/managers see who's on the clock, correct entries (e.g. a forgotten clock-out), and run payroll hours/cost reports |
+| **All Locations** | Only shown once you have more than one store: a side-by-side snapshot of every location you can access. Switch which store you're working in from the sidebar; owners add locations and grant other employees access from Settings |
 | **Item Audit** | Run the PLU data quality engine; approve or reject each finding |
 | **Pricing** | Run margin analysis; review and approve price change recommendations |
 | **Reports** | Generate and archive 13 report types; export to CSV; print |

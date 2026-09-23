@@ -73,7 +73,7 @@ dbService.run('DELETE FROM audit_log');
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 console.log('    Creating demo store…');
-const storeId = dbService.upsertStore({
+const storeId = dbService.createStore({
   name:          "Joe's Corner Mart",
   address:       '1234 Main Street',
   city:          'Springfield',
