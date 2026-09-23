@@ -40,6 +40,7 @@ export class DatabaseService {
     this.db.pragma('foreign_keys = ON');
     this.db.pragma('synchronous = NORMAL');
     this.applySchema();
+    this.applyColumnMigrations();
   }
 
   close(): void {
@@ -60,6 +61,29 @@ export class DatabaseService {
     }
     const sql = fs.readFileSync(this.schemaPath, 'utf-8');
     this.db!.exec(sql);
+  }
+
+  /**
+   * `CREATE TABLE IF NOT EXISTS` (what applySchema runs) creates any table
+   * that's new to schema.sql, but silently does nothing for a column added
+   * to a table that already exists on disk — an install that onboarded
+   * before that column existed just never gets it, and every query that
+   * touches it throws "no such column" at runtime instead of failing to
+   * open. Each column ever added to an existing table after its first
+   * release needs an entry here; a column on a brand-new table doesn't
+   * (CREATE TABLE IF NOT EXISTS already covers that case correctly).
+   */
+  private applyColumnMigrations(): void {
+    const migrations: { table: string; column: string; ddl: string }[] = [
+      { table: 'plu_items', column: 'on_hand_qty', ddl: 'ALTER TABLE plu_items ADD COLUMN on_hand_qty REAL NOT NULL DEFAULT 0' },
+      { table: 'plu_items', column: 'reorder_point', ddl: 'ALTER TABLE plu_items ADD COLUMN reorder_point REAL' },
+    ];
+    for (const m of migrations) {
+      const columns = this.db!.prepare(`PRAGMA table_info(${m.table})`).all() as { name: string }[];
+      if (!columns.some(c => c.name === m.column)) {
+        this.db!.exec(m.ddl);
+      }
+    }
   }
 
   // ─── Generic CRUD ─────────────────────────────────────────────────────────
