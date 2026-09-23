@@ -14,6 +14,7 @@ import { ItemAuditService } from '../../backend/services/ItemAuditService';
 import { PricingService } from '../../backend/services/PricingService';
 import { ReportService } from '../../backend/services/ReportService';
 import { InventoryService } from '../../backend/services/InventoryService';
+import { LotteryService } from '../../backend/services/LotteryService';
 import { AuditLogger } from '../../audit/AuditLogger';
 import { MockVerifoneAdapter } from '../../integrations/adapters/MockVerifoneAdapter';
 import { CommanderNaxmlClient, CommanderFaultError } from '../../integrations/commander/CommanderNaxmlClient';
@@ -42,7 +43,8 @@ const importSvc   = new ImportService(dbService, auditLogger);
 const itemAuditSvc = new ItemAuditService(dbService, auditLogger);
 const pricingSvc  = new PricingService(dbService, auditLogger);
 const inventorySvc = new InventoryService(dbService, auditLogger);
-const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc);
+const lotterySvc  = new LotteryService(dbService, auditLogger);
+const reportSvc   = new ReportService(dbService, auditLogger, inventorySvc, lotterySvc);
 
 // Active session state (lightweight, no persistence needed for MVP)
 let activeUserId: string | null = null;
@@ -667,6 +669,68 @@ ipcMain.handle('inventory:getOnHandLevels', () => {
 ipcMain.handle('inventory:getValuation', () => {
   if (!activeStoreId) return { totalValue: 0, itemCount: 0, lowStockCount: 0 };
   return inventorySvc.getInventoryValuation(activeStoreId);
+});
+
+// ── Lottery (instant tickets) ──────────────────────────────────────────────────
+
+ipcMain.handle('lottery:listGames', () => {
+  if (!activeStoreId) return [];
+  return lotterySvc.listGames(activeStoreId);
+});
+
+ipcMain.handle('lottery:createGame', (_e, data: Parameters<typeof lotterySvc.createGame>[2]) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    const id = lotterySvc.createGame(activeStoreId, activeUserId, data);
+    return { success: true, id };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('lottery:receiveBook', (_e, { gameId, bookNumber }: { gameId: string; bookNumber: string }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    const id = lotterySvc.receiveBook(activeStoreId, activeUserId, gameId, bookNumber);
+    return { success: true, id };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('lottery:activateBook', (_e, bookId: string) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    lotterySvc.activateBook(bookId, activeStoreId, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('lottery:recordCount', (_e, { bookId, ticketNumber }: { bookId: string; ticketNumber: number }) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    lotterySvc.recordCount(bookId, activeStoreId, activeUserId, ticketNumber);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('lottery:returnBook', (_e, bookId: string) => {
+  if (!activeStoreId || !activeUserId) return { error: 'Not authenticated' };
+  try {
+    lotterySvc.returnBook(bookId, activeStoreId, activeUserId);
+    return { success: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('lottery:listBooks', () => {
+  if (!activeStoreId) return [];
+  return lotterySvc.listBooks(activeStoreId);
 });
 
 // ── Reports ───────────────────────────────────────────────────────────────────

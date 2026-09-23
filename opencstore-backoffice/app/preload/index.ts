@@ -56,6 +56,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   inventoryGetOnHandLevels:   ()                          => invoke('inventory:getOnHandLevels'),
   inventoryGetValuation:      ()                          => invoke('inventory:getValuation'),
 
+  // ── Lottery ───────────────────────────────────────────────────────────────
+  lotteryListGames:        ()                             => invoke('lottery:listGames'),
+  lotteryCreateGame:       (data: unknown)                => invoke('lottery:createGame', data),
+  lotteryReceiveBook:      (data: unknown)                => invoke('lottery:receiveBook', data),
+  lotteryActivateBook:     (bookId: string)               => invoke('lottery:activateBook', bookId),
+  lotteryRecordCount:      (data: unknown)                => invoke('lottery:recordCount', data),
+  lotteryReturnBook:       (bookId: string)               => invoke('lottery:returnBook', bookId),
+  lotteryListBooks:        ()                             => invoke('lottery:listBooks'),
+
   // ── Settings ──────────────────────────────────────────────────────────────
   getSettings:           ()                              => invoke('settings:get'),
   saveSettings:          (data: unknown)                 => invoke('settings:save', data),
@@ -160,6 +169,13 @@ declare global {
       inventoryCreateAdjustment:  (data: unknown) => Promise<{ success: boolean } | { error: string }>;
       inventoryGetOnHandLevels:   () => Promise<unknown[]>;
       inventoryGetValuation:      () => Promise<{ totalValue: number; itemCount: number; lowStockCount: number }>;
+      lotteryListGames:        () => Promise<unknown[]>;
+      lotteryCreateGame:       (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
+      lotteryReceiveBook:      (data: unknown) => Promise<{ success: boolean; id: string } | { error: string }>;
+      lotteryActivateBook:     (bookId: string) => Promise<{ success: boolean } | { error: string }>;
+      lotteryRecordCount:      (data: unknown) => Promise<{ success: boolean } | { error: string }>;
+      lotteryReturnBook:       (bookId: string) => Promise<{ success: boolean } | { error: string }>;
+      lotteryListBooks:        () => Promise<unknown[]>;
       getSettings:           () => Promise<Record<string, string>>;
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;

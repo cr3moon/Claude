@@ -23,6 +23,7 @@ export type ReportType =
   | 'low_margin_items'
   | 'import_job_log'
   | 'inventory_valuation'
+  | 'lottery_sales'
   | 'weekly_summary'
   | 'monthly_summary'
   | 'yearly_summary';
@@ -246,6 +247,17 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { key: 'cost',           label: 'Cost',          format: 'currency', align: 'right' },
       { key: 'extended_value', label: 'Ext. Value',    format: 'currency', align: 'right' },
       { key: 'low_stock',      label: 'Low Stock',     format: 'text' },
+    ],
+  },
+  {
+    id: 'lottery_sales', name: 'Lottery Sales', category: 'sales',
+    description: 'Instant ticket sales by game for the selected period, from count reconciliations.',
+    supportsShift: false,
+    columns: [
+      { key: 'game_number',  label: 'Game #',       format: 'text' },
+      { key: 'game_name',    label: 'Game',          format: 'text' },
+      { key: 'tickets_sold', label: 'Tickets Sold',  format: 'integer',  align: 'right' },
+      { key: 'sales_amount', label: 'Sales $',       format: 'currency', align: 'right' },
     ],
   },
   {

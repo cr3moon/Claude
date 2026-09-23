@@ -805,6 +805,64 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_store ON deliveries(store_id, created_
 CREATE INDEX IF NOT EXISTS idx_vendors_store ON vendors(store_id);
 
 -- ============================================================
+-- LOTTERY (instant / scratch-off tickets)
+-- ============================================================
+
+-- One row per state lottery game (e.g. "Game #1234, $5 Diamond Jubilee").
+-- ticket_price × book_size is the full value of an unsold book.
+CREATE TABLE IF NOT EXISTS lottery_games (
+  id              TEXT PRIMARY KEY,
+  store_id        TEXT NOT NULL REFERENCES stores(id),
+  game_number     TEXT NOT NULL,   -- lottery commission's game number, not a local id
+  name            TEXT NOT NULL,
+  ticket_price    REAL NOT NULL,
+  book_size       INTEGER NOT NULL, -- tickets per book
+  is_active       INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+-- A single physical book of tickets. current_ticket_number is a running
+-- "tickets sold so far" counter (0..book_size), advanced only through
+-- lottery_counts — never edited directly, same derived-total pattern as
+-- plu_items.on_hand_qty.
+CREATE TABLE IF NOT EXISTS lottery_books (
+  id                    TEXT PRIMARY KEY,
+  store_id              TEXT NOT NULL REFERENCES stores(id),
+  game_id               TEXT NOT NULL REFERENCES lottery_games(id),
+  book_number           TEXT NOT NULL,  -- serial printed on the book
+  status                TEXT NOT NULL DEFAULT 'received', -- 'received'|'active'|'settled'|'returned'
+  current_ticket_number INTEGER NOT NULL DEFAULT 0,
+  received_at           TEXT NOT NULL,
+  activated_at          TEXT,
+  settled_at            TEXT,
+  created_by            TEXT NOT NULL REFERENCES users(id),
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lottery_books_serial ON lottery_books(store_id, game_id, book_number);
+
+-- Append-only count log. Each row is one count event: staff reads the
+-- ticket number off an active book, the delta since the previous count is
+-- that many tickets sold (and that many dollars, at the game's price).
+CREATE TABLE IF NOT EXISTS lottery_counts (
+  id                TEXT PRIMARY KEY,
+  store_id          TEXT NOT NULL REFERENCES stores(id),
+  book_id           TEXT NOT NULL REFERENCES lottery_books(id),
+  ticket_number     INTEGER NOT NULL,   -- cumulative tickets sold as of this count
+  tickets_sold      INTEGER NOT NULL,   -- delta vs. the previous count
+  sales_amount      REAL NOT NULL,      -- tickets_sold * game's ticket_price at count time
+  counted_by        TEXT NOT NULL REFERENCES users(id),
+  counted_at        TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_lottery_counts_book ON lottery_counts(book_id, counted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lottery_counts_store ON lottery_counts(store_id, counted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lottery_books_store ON lottery_books(store_id, status);
+CREATE INDEX IF NOT EXISTS idx_lottery_games_store ON lottery_games(store_id);
+
+-- ============================================================
 -- SUPPLEMENTAL INDEXES
 -- ============================================================
 

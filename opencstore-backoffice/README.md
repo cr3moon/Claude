@@ -90,6 +90,7 @@ On first launch, the **Onboarding Wizard** will walk you through:
 | **Dashboard** | See today's sales, pending recommendations, low-margin alerts, quick actions |
 | **Data Import** | Load sample data or import XML/CSV exports from your POS |
 | **Inventory** | Track on-hand quantity and value per item; receive deliveries from vendors (updates cost + on-hand); log manual adjustments for shrink, waste, damage, and physical counts |
+| **Lottery** | Track instant ticket games and physical books through their lifecycle (received → active → settled/returned); reconcile sales by recording a ticket count against each active book |
 | **Item Audit** | Run the PLU data quality engine; approve or reject each finding |
 | **Pricing** | Run margin analysis; review and approve price change recommendations |
 | **Reports** | Generate and archive 13 report types; export to CSV; print |

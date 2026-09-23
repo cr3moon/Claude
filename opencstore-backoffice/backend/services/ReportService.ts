@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseService } from './DatabaseService';
 import type { AuditLogger } from '../../audit/AuditLogger';
 import type { InventoryService } from './InventoryService';
+import type { LotteryService } from './LotteryService';
 
 export type ReportType =
   | 'daily_shift'
@@ -27,7 +28,8 @@ export type ReportType =
   | 'over_short'
   | 'low_margin_items'
   | 'import_job_log'
-  | 'inventory_valuation';
+  | 'inventory_valuation'
+  | 'lottery_sales';
 
 export interface ReportParams {
   storeId: string;
@@ -45,7 +47,8 @@ export class ReportService {
   constructor(
     private db: DatabaseService,
     private audit: AuditLogger,
-    private inventory: InventoryService
+    private inventory: InventoryService,
+    private lottery: LotteryService
   ) {}
 
   generate(params: ReportParams): { id: string; data: unknown } {
@@ -69,6 +72,7 @@ export class ReportService {
       case 'low_margin_items':     data = this.lowMarginItems(storeId); break;
       case 'import_job_log':       data = this.importJobLog(storeId, start, end); break;
       case 'inventory_valuation':  data = this.inventory.getOnHandLevels(storeId); break;
+      case 'lottery_sales':        data = this.lottery.getSalesSummary(storeId, start, end); break;
       case 'daily_shift':
       case 'eod_close':
       default:                    data = this.dailySummary(storeId, start, end); break;

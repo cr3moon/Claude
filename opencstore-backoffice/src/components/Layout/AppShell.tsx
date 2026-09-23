@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/pricing',    label: 'Pricing',     icon: '$',  perm: 'view_pricing'    },
   { to: '/imports',    label: 'Imports',     icon: '↑',  perm: 'view_imports'    },
   { to: '/inventory',  label: 'Inventory',   icon: '▧',  perm: 'view_inventory'  },
+  { to: '/lottery',    label: 'Lottery',     icon: '★',  perm: 'view_lottery'    },
   { to: '/reports',    label: 'Reports',     icon: '≡',  perm: 'view_reports'    },
   { to: '/operations', label: 'Operations',  icon: '◷',  perm: 'view_operations' },
   { to: '/audit-log',  label: 'Audit Log',   icon: '⊞',  perm: 'view_audit_log'  },

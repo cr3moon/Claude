@@ -41,6 +41,8 @@ export type Permission =
   | 'run_import'
   | 'view_inventory'
   | 'manage_inventory'
+  | 'view_lottery'
+  | 'manage_lottery'
   | 'view_operations'
   | 'run_checklists'
   | 'view_audit_log'
@@ -57,6 +59,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_pricing', 'run_pricing_analysis', 'approve_price_changes', 'export_changes',
     'view_imports', 'run_import',
     'view_inventory', 'manage_inventory',
+    'view_lottery', 'manage_lottery',
     'view_operations', 'run_checklists',
     'view_audit_log',
     'view_settings', 'edit_settings', 'manage_users', 'configure_connection',
@@ -68,6 +71,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_pricing',
     'view_imports',
     'view_inventory', 'manage_inventory',
+    'view_lottery', 'manage_lottery',
     'view_operations', 'run_checklists',
     'view_audit_log',
     'view_settings',
