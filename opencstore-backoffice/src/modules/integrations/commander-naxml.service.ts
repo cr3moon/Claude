@@ -88,4 +88,13 @@ export const CommanderNaxmlService = {
   async getPumpMaintenanceTotals(): Promise<PumpHoseTotal[]> {
     return unwrap(await window.electronAPI.commanderGetPumpMaintenanceTotals());
   },
+
+  /** Per-site allow-list of which grades to display. null/[] = no filter, show all. */
+  async getVisibleGrades(): Promise<string[] | null> {
+    return window.electronAPI.commanderGetVisibleGrades();
+  },
+
+  async setVisibleGrades(grades: string[]): Promise<void> {
+    await window.electronAPI.commanderSetVisibleGrades(grades);
+  },
 };

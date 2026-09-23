@@ -87,6 +87,21 @@ as inferred from the read schema, not captured from a real write (see its §13.3
 unverified until confirmed against a real unit, and don't wire it to a button without an
 explicit operator-confirmation step, given a push takes effect at the pump within seconds.
 
+**Grade names, real-world quirks, and the per-site display filter:** a live production unit's
+`vfuelprices` response can deviate from the reference's documented shape — observed: unused
+slots numbered `UNUSED1`..`UNUSEDn` rather than the literal `name="UNUSED"` the reference
+documents (§10.7), which `CommanderNaxmlClient.parseFuelPrices` now filters by prefix, not exact
+match. Also note: `fast-xml-parser`'s `parseAttributeValue` option is deliberately **off** on
+this client's parser — with it on, a real grade name like `"E10"` (a standard ethanol-blend fuel
+grade) gets misread as malformed scientific notation and silently coerced to the JS value `NaN`,
+corrupting the name. Beyond unused slots, a site's unit may also report real, configured grades
+the operator doesn't actually sell at that location — there's no protocol-level way to distinguish
+"configured but irrelevant to this site" from "the grades I sell," so this is a per-site,
+user-configured allow-list, not something the client can filter automatically. It's stored under
+the `commander_visible_grades` `app_settings` key (JSON array of grade names; unset or `[]` means
+no filter, show everything) via `commander:getVisibleGrades`/`commander:setVisibleGrades` IPC, and
+edited from the "Grades to Show" checkboxes under the Settings page's fuel prices table.
+
 ### Credentials
 
 `connection_settings` stores `host`/`port`/`username_hint` only — **never the password**. The

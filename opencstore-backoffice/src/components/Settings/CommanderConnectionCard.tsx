@@ -26,6 +26,16 @@ export default function CommanderConnectionCard({ disabled }: Props) {
   const [pricesError, setPricesError] = useState<string | null>(null);
   const [loadingPrices, setLoadingPrices] = useState(false);
 
+  // Per-site allow-list of which grades to display. `visibleGrades` is the
+  // persisted setting (null while still loading; [] or null once loaded
+  // means "no filter, show all"). `gradeSelection` is the live checkbox/
+  // table state, re-seeded from `visibleGrades` each time a fresh price
+  // list arrives, and is the single source of truth for what's rendered —
+  // this way unsaved checkbox changes preview live in the table below.
+  const [visibleGrades, setVisibleGrades] = useState<string[] | null>(null);
+  const [gradeSelection, setGradeSelection] = useState<Set<string>>(new Set());
+  const [savingGrades, setSavingGrades] = useState(false);
+
   useEffect(() => {
     (async () => {
       const existing = await CommanderNaxmlService.getConnectionSettings();
@@ -35,8 +45,57 @@ export default function CommanderConnectionCard({ disabled }: Props) {
         setPort(existing.port);
         setUsername(existing.username_hint);
       }
+      setVisibleGrades(await CommanderNaxmlService.getVisibleGrades());
     })();
   }, []);
+
+  useEffect(() => {
+    if (!prices) return;
+    const allNames = prices.map(p => p.name);
+    const saved = visibleGrades && visibleGrades.length > 0
+      ? visibleGrades.filter(n => allNames.includes(n))
+      : allNames;
+    setGradeSelection(new Set(saved));
+    // Only re-seed when a fresh price list arrives, not on every
+    // visibleGrades change — saveGradeFilter()/showAllGrades() already
+    // keep gradeSelection in sync with what they just persisted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prices]);
+
+  const displayedPrices = prices?.filter(p => gradeSelection.has(p.name)) ?? null;
+
+  function toggleGrade(name: string) {
+    setGradeSelection(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  async function saveGradeFilter() {
+    setSavingGrades(true);
+    try {
+      const allNames = (prices ?? []).map(p => p.name);
+      // Selecting every available grade is equivalent to no filter — save
+      // [] so a future device grade addition shows up without a manual re-check.
+      const selected = gradeSelection.size === allNames.length ? [] : [...gradeSelection];
+      await CommanderNaxmlService.setVisibleGrades(selected);
+      setVisibleGrades(selected);
+    } finally {
+      setSavingGrades(false);
+    }
+  }
+
+  async function showAllGrades() {
+    setSavingGrades(true);
+    try {
+      await CommanderNaxmlService.setVisibleGrades([]);
+      setVisibleGrades([]);
+      setGradeSelection(new Set((prices ?? []).map(p => p.name)));
+    } finally {
+      setSavingGrades(false);
+    }
+  }
 
   async function testConnection(e: React.FormEvent) {
     e.preventDefault();
@@ -152,28 +211,69 @@ export default function CommanderConnectionCard({ disabled }: Props) {
           ) : prices && prices.length === 0 ? (
             <p className="text-xs text-gray-400">No active fuel grades returned.</p>
           ) : (
-            <table className="table-base w-full text-xs">
-              <thead>
-                <tr>
-                  <th className="text-left">Grade</th>
-                  <th className="text-right">In-Effect Cash</th>
-                  <th className="text-right">In-Effect Credit</th>
-                  <th className="text-right">Pending Cash</th>
-                  <th className="text-right">Pending Credit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prices?.map(g => (
-                  <tr key={g.sysid}>
-                    <td>{g.name}</td>
-                    <td className="text-right tabular-nums">{fmtMoney(g.inEffectCash ?? undefined)}</td>
-                    <td className="text-right tabular-nums">{fmtMoney(g.inEffectCredit ?? undefined)}</td>
-                    <td className="text-right tabular-nums text-gray-500">{fmtMoney(g.pendingCash ?? undefined)}</td>
-                    <td className="text-right tabular-nums text-gray-500">{fmtMoney(g.pendingCredit ?? undefined)}</td>
+            <>
+              <table className="table-base w-full text-xs">
+                <thead>
+                  <tr>
+                    <th className="text-left">Grade</th>
+                    <th className="text-right">In-Effect Cash</th>
+                    <th className="text-right">In-Effect Credit</th>
+                    <th className="text-right">Pending Cash</th>
+                    <th className="text-right">Pending Credit</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {displayedPrices?.map(g => (
+                    <tr key={g.sysid}>
+                      <td>{g.name}</td>
+                      <td className="text-right tabular-nums">{fmtMoney(g.inEffectCash ?? undefined)}</td>
+                      <td className="text-right tabular-nums">{fmtMoney(g.inEffectCredit ?? undefined)}</td>
+                      <td className="text-right tabular-nums text-gray-500">{fmtMoney(g.pendingCash ?? undefined)}</td>
+                      <td className="text-right tabular-nums text-gray-500">{fmtMoney(g.pendingCredit ?? undefined)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {prices && prices.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Grades to Show</h4>
+                  <p className="text-xs text-gray-500 mb-2">
+                    This site's Commander unit may report grades you don't sell. Pick which ones
+                    to display — saved per site, applies next time too.
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-3">
+                    {prices.map(g => (
+                      <label key={g.sysid} className="flex items-center gap-1.5 text-xs text-gray-700">
+                        <input
+                          type="checkbox"
+                          disabled={disabled}
+                          checked={gradeSelection.has(g.name)}
+                          onChange={() => toggleGrade(g.name)}
+                        />
+                        {g.name}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button" className="btn-secondary text-xs"
+                      disabled={disabled || savingGrades}
+                      onClick={saveGradeFilter}
+                    >
+                      {savingGrades ? 'Saving…' : 'Save Grade Filter'}
+                    </button>
+                    <button
+                      type="button" className="text-xs text-gray-500 underline"
+                      disabled={disabled || savingGrades}
+                      onClick={showAllGrades}
+                    >
+                      Show All
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -370,6 +370,33 @@ ipcMain.handle('commander:getPumpMaintenanceTotals', async () => {
   }
 });
 
+// Per-site allow-list of which fuel grades to display (e.g. a site with a
+// Commander unit configured with unused/legacy grades it doesn't sell).
+// Stored as a JSON array under a single app_settings key — this app is
+// single-store per install, so no store_id scoping is needed (same pattern
+// as onboarding_complete). Empty array or unset means "no filter, show all".
+const VISIBLE_GRADES_KEY = 'commander_visible_grades';
+
+ipcMain.handle('commander:getVisibleGrades', (): string[] | null => {
+  const raw = dbService.getSetting(VISIBLE_GRADES_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('commander:setVisibleGrades', (_e, grades: string[]) => {
+  dbService.setSetting(
+    VISIBLE_GRADES_KEY,
+    JSON.stringify(grades),
+    "Fuel grades to display for this site's Commander connection (empty = show all)"
+  );
+  return { success: true };
+});
+
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 ipcMain.handle('settings:get', () => {

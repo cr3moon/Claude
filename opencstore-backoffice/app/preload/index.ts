@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   commanderGetFuelPrices:  ()                             => invoke('commander:getFuelPrices'),
   commanderGetFuelTotals:  (period: 1 | 2 | 3 | 4)        => invoke('commander:getFuelTotals', period),
   commanderGetPumpMaintenanceTotals: ()                  => invoke('commander:getPumpMaintenanceTotals'),
+  commanderGetVisibleGrades: ()                          => invoke('commander:getVisibleGrades'),
+  commanderSetVisibleGrades: (grades: string[])          => invoke('commander:setVisibleGrades', grades),
 
   // ── Settings ──────────────────────────────────────────────────────────────
   getSettings:           ()                              => invoke('settings:get'),
@@ -134,6 +136,8 @@ declare global {
         pumpSysid: number; hoseSysid: number; grade: string;
         totalMoneyUsd: number; totalVolumeGallons: number; totalTransactions: number;
       }>>;
+      commanderGetVisibleGrades: () => Promise<string[] | null>;
+      commanderSetVisibleGrades: (grades: string[]) => Promise<{ success: boolean }>;
       getSettings:           () => Promise<Record<string, string>>;
       saveSettings:          (data: unknown) => Promise<void>;
       runMockImport:         () => Promise<unknown>;
